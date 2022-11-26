@@ -201,6 +201,10 @@ class DB {
     _walletBoxes[walletId] = await Hive.openBox<dynamic>(walletId);
   }
 
+  Future<Box<dynamic>?> getWalletBox({required String walletId}) async {
+    return _walletBoxes[walletId];
+  }
+
   Future<void> removeWalletBox({required String walletId}) async {
     _walletBoxes.remove(walletId);
   }

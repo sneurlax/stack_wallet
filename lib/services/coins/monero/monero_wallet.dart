@@ -388,6 +388,10 @@ class MoneroWallet extends CoinServiceAPI {
   /// Refreshes display data for the wallet
   @override
   Future<void> refresh() async {
+    if (!_hasBeenInitialized) {
+      await initializeExisting();
+    }
+
     if (refreshMutex) {
       Logging.instance.log("$walletId $walletName refreshMutex denied",
           level: LogLevel.Info);
@@ -553,6 +557,11 @@ class MoneroWallet extends CoinServiceAPI {
     await stopSyncPercentTimer();
     await walletBase?.save(prioritySave: true);
     walletBase?.close();
+    walletBase = null;
+    walletService = null;
+    keysStorage = null;
+    _walletCreationService = null;
+    _hasBeenInitialized = false;
     isActive = false;
   }
 
@@ -770,6 +779,7 @@ class MoneroWallet extends CoinServiceAPI {
     _currentReceivingAddress = Future(() => initialReceivingAddress);
 
     Logging.instance.log("_generateNewWalletFinished", level: LogLevel.Info);
+    _hasBeenInitialized = true;
   }
 
   @override
@@ -815,9 +825,11 @@ class MoneroWallet extends CoinServiceAPI {
     //     node: Node(
     //         uri: "xmr-node.cakewallet.com:18081", type: WalletType.monero));
     // walletBase?.startSync();
-
+    _hasBeenInitialized = true;
     return true;
   }
+
+  bool _hasBeenInitialized = false;
 
   @override
   Future<void> initializeExisting() async {
@@ -858,6 +870,14 @@ class MoneroWallet extends CoinServiceAPI {
         level: LogLevel.Info);
     // Wallet already exists, triggers for a returning user
 
+    if (!(await walletBase!.isConnected())) {
+      final node = await getCurrentNode();
+      final host = Uri.parse(node.host).host;
+      await walletBase?.connectToNode(
+          node: Node(uri: "$host:${node.port}", type: WalletType.monero));
+      // await walletBase?.startSync();
+    }
+
     String indexKey = "receivingIndex";
     final curIndex =
         await DB.instance.get<dynamic>(boxName: walletId, key: indexKey) as int;
@@ -866,6 +886,7 @@ class MoneroWallet extends CoinServiceAPI {
     Logging.instance.log("xmr address in init existing: $newReceivingAddress",
         level: LogLevel.Info);
     _currentReceivingAddress = Future(() => newReceivingAddress);
+    _hasBeenInitialized = true;
   }
 
   @override
@@ -1041,6 +1062,7 @@ class MoneroWallet extends CoinServiceAPI {
       rethrow;
     }
     longMutex = false;
+    _hasBeenInitialized = true;
 
     final end = DateTime.now();
     Logging.instance.log(
@@ -1108,8 +1130,40 @@ class MoneroWallet extends CoinServiceAPI {
   @override
   bool get isConnected => _isConnected;
 
+  Future<void> _updateCachedTotalBalance(int balance) async {
+    await DB.instance.put<dynamic>(
+      boxName: walletId,
+      key: "cachedTotalBalance",
+      value: balance,
+    );
+  }
+
+  Future<int> get cachedTotalBalance async {
+    return await DB.instance.get<dynamic>(
+          boxName: walletId,
+          key: "cachedTotalBalance",
+        ) as int? ??
+        0;
+  }
+
   @override
   Future<Decimal> get totalBalance async {
+    final box = await DB.instance.getWalletBox(walletId: walletId);
+
+    if (box == null) {
+      const message =
+          "Failed to fetch totalBalance due to non existent hive box";
+      Logging.instance.log(
+        message,
+        level: LogLevel.Fatal,
+      );
+      throw Exception(message);
+    }
+
+    if (walletBase == null) {
+      return Format.satoshisToAmount(await cachedTotalBalance, coin: coin);
+    }
+
     var transactions = walletBase?.transactionHistory!.transactions;
     int transactionBalance = 0;
     for (var tx in transactions!.entries) {
@@ -1121,16 +1175,20 @@ class MoneroWallet extends CoinServiceAPI {
     }
 
     // TODO: grab total balance
-    var bal = 0;
+    int bal = 0;
     for (var element in walletBase!.balance!.entries) {
       bal = bal + element.value.fullBalance;
     }
     debugPrint("balances: $transactionBalance $bal");
     if (isActive) {
+      await _updateCachedTotalBalance(bal);
+
       String am = moneroAmountToString(amount: bal);
 
       return Decimal.parse(am);
     } else {
+      await _updateCachedTotalBalance(transactionBalance);
+
       String am = moneroAmountToString(amount: transactionBalance);
 
       return Decimal.parse(am);
@@ -1166,6 +1224,12 @@ class MoneroWallet extends CoinServiceAPI {
             await walletBase?.startSync();
           }
           await refresh();
+        } else {
+          _hasBeenInitialized = false;
+          walletBase = null;
+          walletService = null;
+          keysStorage = null;
+          _walletCreationService = null;
         }
         this.isActive = isActive;
       };
@@ -1376,12 +1440,35 @@ class MoneroWallet extends CoinServiceAPI {
     }
   }
 
+  Future<void> _updateCachedAvailableBalance(int balance) async {
+    await DB.instance.put<dynamic>(
+      boxName: walletId,
+      key: "cachedAvailableBalance",
+      value: balance,
+    );
+  }
+
+  Future<int> get cachedAvailableBalance async {
+    return await DB.instance.get<dynamic>(
+          boxName: walletId,
+          key: "cachedAvailableBalance",
+        ) as int? ??
+        0;
+  }
+
   @override
   Future<Decimal> get availableBalance async {
+    if (walletBase == null) {
+      return Format.satoshisToAmount(await cachedAvailableBalance, coin: coin);
+    }
+
+    //
     var bal = 0;
     for (var element in walletBase!.balance!.entries) {
       bal = bal + element.value.unlockedBalance;
     }
+
+    await _updateCachedAvailableBalance(bal);
     String am = moneroAmountToString(amount: bal);
 
     return Decimal.parse(am);
@@ -1550,7 +1637,8 @@ class MoneroWallet extends CoinServiceAPI {
     //       await Future<void>.delayed(const Duration(milliseconds: 1000));
     //     } catch (e, s) {
     //       Logging.instance.log("$feeRateType $e $s", level: LogLevel.Error);
-    final aprox = walletBase!.calculateEstimatedFee(priority, satoshiAmount);
+    final aprox =
+        walletBase?.calculateEstimatedFee(priority, satoshiAmount) ?? 0;
     //     }
     //   }
     // });
