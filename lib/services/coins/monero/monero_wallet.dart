@@ -607,10 +607,10 @@ class MoneroWallet extends CoinServiceAPI {
   }
 
   Future<String> _generateAddressForChain(int chain, int index) async {
-    //
-    String address = walletBase!.getTransactionAddress(chain, index);
+    // should only return null here when exiting wallet quickly
+    String? address = walletBase?.getTransactionAddress(chain, index);
 
-    return address;
+    return address ?? "";
   }
 
   /// Adds [address] to the relevant chain's address array, which is determined by [chain].
@@ -1206,23 +1206,23 @@ class MoneroWallet extends CoinServiceAPI {
         timer = null;
         await stopSyncPercentTimer();
         if (isActive) {
-          String? password;
-          try {
-            password =
-                await keysStorage?.getWalletPassword(walletName: _walletId);
-          } catch (e, s) {
-            debugPrint("Exception was thrown $e $s");
-            throw Exception("Password not found $e, $s");
-          }
-          walletBase = (await walletService?.openWallet(_walletId, password!))
-              as MoneroWalletBase?;
-          if (!(await walletBase!.isConnected())) {
-            final node = await getCurrentNode();
-            final host = Uri.parse(node.host).host;
-            await walletBase?.connectToNode(
-                node: Node(uri: "$host:${node.port}", type: WalletType.monero));
-            await walletBase?.startSync();
-          }
+          // String? password;
+          // try {
+          //   password =
+          //       await keysStorage?.getWalletPassword(walletName: _walletId);
+          // } catch (e, s) {
+          //   debugPrint("Exception was thrown $e $s");
+          //   throw Exception("Password not found $e, $s");
+          // }
+          // walletBase = (await walletService?.openWallet(_walletId, password!))
+          //     as MoneroWalletBase?;
+          // if (!(await walletBase!.isConnected())) {
+          //   final node = await getCurrentNode();
+          //   final host = Uri.parse(node.host).host;
+          //   await walletBase?.connectToNode(
+          //       node: Node(uri: "$host:${node.port}", type: WalletType.monero));
+          //   await walletBase?.startSync();
+          // }
           await refresh();
         } else {
           _hasBeenInitialized = false;
