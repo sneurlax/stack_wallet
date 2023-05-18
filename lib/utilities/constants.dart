@@ -53,6 +53,7 @@ abstract class Constants {
       case Coin.bitcoin:
       case Coin.litecoin:
       case Coin.litecoinTestNet:
+      case Coin.cyberyen:
       case Coin.bitcoincash:
       case Coin.bitcoincashTestnet:
       case Coin.dogecoin:
@@ -84,6 +85,7 @@ abstract class Constants {
       case Coin.bitcoin:
       case Coin.litecoin:
       case Coin.litecoinTestNet:
+      case Coin.cyberyen:
       case Coin.bitcoincash:
       case Coin.bitcoincashTestnet:
       case Coin.dogecoin:
@@ -116,6 +118,7 @@ abstract class Constants {
       case Coin.bitcoin:
       case Coin.litecoin:
       case Coin.litecoinTestNet:
+      case Coin.cyberyen:
       case Coin.bitcoincash:
       case Coin.bitcoincashTestnet:
       case Coin.dogecoin:
@@ -157,6 +160,7 @@ abstract class Constants {
 
       case Coin.litecoin:
       case Coin.litecoinTestNet:
+      case Coin.cyberyen:
         return 150;
 
       case Coin.firo:

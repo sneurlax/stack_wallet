@@ -43,6 +43,8 @@ Uri getDefaultBlockExplorerUrlFor({
       return Uri.parse("https://chainz.cryptoid.info/nmc/tx.dws?$txid.htm");
     case Coin.particl:
       return Uri.parse("https://chainz.cryptoid.info/part/tx.dws?$txid.htm");
+    case Coin.cyberyen:
+      return Uri.parse("https://explorer.cyberyen.org/tx/$txid");
   }
 }
 

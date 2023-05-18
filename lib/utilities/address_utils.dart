@@ -4,6 +4,7 @@ import 'package:bitcoindart/bitcoindart.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_libepiccash/epic_cash.dart';
 import 'package:stackwallet/services/coins/bitcoincash/bitcoincash_wallet.dart';
+import 'package:stackwallet/services/coins/cyberyen/cyberyen_wallet.dart';
 import 'package:stackwallet/services/coins/dogecoin/dogecoin_wallet.dart';
 import 'package:stackwallet/services/coins/ecash/ecash_wallet.dart';
 import 'package:stackwallet/services/coins/firo/firo_wallet.dart';
@@ -52,6 +53,8 @@ class AddressUtils {
         return Address.validateAddress(address, bitcoin);
       case Coin.litecoin:
         return Address.validateAddress(address, litecoin);
+      case Coin.cyberyen:
+        return Address.validateAddress(address, cyberyenMainNetwork);
       case Coin.bitcoincash:
         return Address.validateAddress(address, bitcoincash);
       case Coin.dogecoin:

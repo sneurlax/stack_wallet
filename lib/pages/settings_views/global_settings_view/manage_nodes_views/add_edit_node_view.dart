@@ -706,6 +706,7 @@ class _NodeFormState extends ConsumerState<NodeForm> {
     switch (coin) {
       case Coin.bitcoin:
       case Coin.litecoin:
+      case Coin.cyberyen:
       case Coin.dogecoin:
       case Coin.firo:
       case Coin.namecoin:

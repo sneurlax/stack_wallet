@@ -6,6 +6,7 @@ import 'package:stackwallet/models/node_model.dart';
 import 'package:stackwallet/models/paymint/fee_object_model.dart';
 import 'package:stackwallet/services/coins/bitcoin/bitcoin_wallet.dart';
 import 'package:stackwallet/services/coins/bitcoincash/bitcoincash_wallet.dart';
+import 'package:stackwallet/services/coins/cyberyen/cyberyen_wallet.dart';
 import 'package:stackwallet/services/coins/dogecoin/dogecoin_wallet.dart';
 import 'package:stackwallet/services/coins/ecash/ecash_wallet.dart';
 import 'package:stackwallet/services/coins/epiccash/epiccash_wallet.dart';
@@ -114,6 +115,17 @@ abstract class CoinServiceAPI {
 
       case Coin.litecoinTestNet:
         return LitecoinWallet(
+          walletId: walletId,
+          walletName: walletName,
+          coin: coin,
+          secureStore: secureStorageInterface,
+          client: client,
+          cachedClient: cachedClient,
+          tracker: tracker,
+        );
+
+      case Coin.cyberyen:
+        return CyberyenWallet(
           walletId: walletId,
           walletName: walletName,
           coin: coin,

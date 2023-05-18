@@ -1,6 +1,7 @@
 import 'package:stackwallet/services/coins/bitcoin/bitcoin_wallet.dart' as btc;
 import 'package:stackwallet/services/coins/bitcoincash/bitcoincash_wallet.dart'
     as bch;
+import 'package:stackwallet/services/coins/cyberyen/cyberyen_wallet.dart' as cy;
 import 'package:stackwallet/services/coins/dogecoin/dogecoin_wallet.dart'
     as doge;
 import 'package:stackwallet/services/coins/ecash/ecash_wallet.dart' as ecash;
@@ -22,6 +23,7 @@ import 'package:stackwallet/utilities/constants.dart';
 enum Coin {
   bitcoin,
   bitcoincash,
+  cyberyen,
   dogecoin,
   eCash,
   epicCash,
@@ -57,6 +59,8 @@ extension CoinExt on Coin {
         return "Litecoin";
       case Coin.bitcoincash:
         return "Bitcoin Cash";
+      case Coin.cyberyen:
+        return "Cyberyen";
       case Coin.dogecoin:
         return "Dogecoin";
       case Coin.epicCash:
@@ -94,6 +98,8 @@ extension CoinExt on Coin {
         return "BTC";
       case Coin.litecoin:
         return "LTC";
+      case Coin.cyberyen:
+        return "CY";
       case Coin.bitcoincash:
         return "BCH";
       case Coin.dogecoin:
@@ -133,6 +139,8 @@ extension CoinExt on Coin {
         return "bitcoin";
       case Coin.litecoin:
         return "litecoin";
+      case Coin.cyberyen:
+        return "cyberyen";
       case Coin.bitcoincash:
         return "bitcoincash";
       case Coin.dogecoin:
@@ -171,6 +179,7 @@ extension CoinExt on Coin {
     switch (this) {
       case Coin.bitcoin:
       case Coin.litecoin:
+      case Coin.cyberyen:
       case Coin.bitcoincash:
       case Coin.dogecoin:
       case Coin.firo:
@@ -202,6 +211,7 @@ extension CoinExt on Coin {
         return true;
 
       case Coin.firo:
+      case Coin.cyberyen:
       case Coin.namecoin:
       case Coin.particl:
       case Coin.eCash:
@@ -221,6 +231,7 @@ extension CoinExt on Coin {
     switch (this) {
       case Coin.bitcoin:
       case Coin.litecoin:
+      case Coin.cyberyen:
       case Coin.bitcoincash:
       case Coin.dogecoin:
       case Coin.firo:
@@ -246,6 +257,7 @@ extension CoinExt on Coin {
     switch (this) {
       case Coin.bitcoin:
       case Coin.litecoin:
+      case Coin.cyberyen:
       case Coin.bitcoincash:
       case Coin.dogecoin:
       case Coin.firo:
@@ -317,6 +329,9 @@ extension CoinExt on Coin {
 
       case Coin.namecoin:
         return nmc.MINIMUM_CONFIRMATIONS;
+
+      case Coin.cyberyen:
+        return cy.MINIMUM_CONFIRMATIONS;
     }
   }
 
@@ -353,6 +368,11 @@ Coin coinFromPrettyName(String name) {
     case "Firo":
     case "firo":
       return Coin.firo;
+
+    case "Cyberyen":
+    case "cyberyen":
+    case "Cyber Yen":
+      return Coin.cyberyen;
 
     case "E-Cash":
     case "ecash":
@@ -418,6 +438,8 @@ Coin coinFromTickerCaseInsensitive(String ticker) {
       return Coin.bitcoin;
     case "ltc":
       return Coin.litecoin;
+    case "cy":
+      return Coin.cyberyen;
     case "bch":
       return Coin.bitcoincash;
     case "doge":

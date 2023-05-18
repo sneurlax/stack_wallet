@@ -11,6 +11,8 @@ final coinIconProvider = Provider.family<String, Coin>((ref, coin) {
     case Coin.litecoin:
     case Coin.litecoinTestNet:
       return assets.litecoin;
+    case Coin.cyberyen:
+      return assets.litecoin;
     case Coin.bitcoincash:
     case Coin.bitcoincashTestnet:
       return assets.bitcoincash;

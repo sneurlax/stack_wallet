@@ -231,6 +231,18 @@ abstract class DefaultNodes {
         isDown: false,
       );
 
+  static NodeModel get cyberyen => NodeModel(
+        host: "cyberyen.stackwallet.com",
+        port: 20063,
+        name: defaultName,
+        id: _nodeId(Coin.cyberyen),
+        useSSL: true,
+        enabled: true,
+        coinName: Coin.litecoin.name,
+        isFailover: true,
+        isDown: false,
+      );
+
   static NodeModel getNodeFor(Coin coin) {
     switch (coin) {
       case Coin.bitcoin:
@@ -283,6 +295,9 @@ abstract class DefaultNodes {
 
       case Coin.dogecoinTestNet:
         return dogecoinTestnet;
+
+      case Coin.cyberyen:
+        return cyberyen;
     }
   }
 }

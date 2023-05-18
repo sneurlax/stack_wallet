@@ -10,6 +10,8 @@ final coinImageProvider = Provider.family<String, Coin>((ref, coin) {
     case Coin.litecoin:
     case Coin.litecoinTestNet:
       return assets.litecoinImage;
+    case Coin.cyberyen:
+      return assets.litecoinImage;
     case Coin.bitcoincash:
       return assets.bitcoincashImage;
     case Coin.dogecoin:
@@ -48,6 +50,8 @@ final coinImageSecondaryProvider = Provider.family<String, Coin>((ref, coin) {
       return assets.bitcoinImageSecondary;
     case Coin.litecoin:
     case Coin.litecoinTestNet:
+      return assets.litecoinImageSecondary;
+    case Coin.cyberyen:
       return assets.litecoinImageSecondary;
     case Coin.bitcoincash:
       return assets.bitcoincashImageSecondary;

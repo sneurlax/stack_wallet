@@ -1674,6 +1674,8 @@ class StackColors extends ThemeExtension<StackColors> {
       case Coin.litecoin:
       case Coin.litecoinTestNet:
         return _coin.litecoin;
+      case Coin.cyberyen:
+        return _coin.cyberyen;
       case Coin.bitcoincash:
       case Coin.bitcoincashTestnet:
         return _coin.bitcoincash;
