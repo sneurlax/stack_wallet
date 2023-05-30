@@ -37,6 +37,8 @@ final coinIconProvider = Provider.family<String, Coin>((ref, coin) {
         return assets.particl;
       case Coin.ethereum:
         return assets.ethereum;
+      default:
+        return assets.stackIcon;
     }
   } else {
     return (assets as ThemeAssetsV2).coinIcons[coin.mainNetVersion]!;
