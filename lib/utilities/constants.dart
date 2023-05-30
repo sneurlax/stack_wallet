@@ -39,8 +39,6 @@ abstract class Constants {
   static const int notificationsMax = 0xFFFFFFFF;
   static const Duration networkAliveTimerDuration = Duration(seconds: 10);
 
-  static const int pinLength = 4;
-
   // Enable Logger.print statements
   static const bool disableLogger = false;
 
@@ -187,7 +185,7 @@ abstract class Constants {
     }
   }
 
-  static const int seedPhraseWordCountBip39 = 24;
+  static const int seedPhraseWordCountBip39 = 12;
   static const int seedPhraseWordCountMonero = 25;
 
   static const Map<int, String> monthMapShort = {

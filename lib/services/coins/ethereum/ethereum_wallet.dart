@@ -350,7 +350,7 @@ class EthereumWallet extends CoinServiceAPI with WalletCache, WalletDB {
           "Attempted to overwrite mnemonic on generate new wallet!");
     }
 
-    final String mnemonic = bip39.generateMnemonic(strength: 256);
+    final String mnemonic = bip39.generateMnemonic(strength: 128);
     await _secureStore.write(key: '${_walletId}_mnemonic', value: mnemonic);
     await _secureStore.write(
       key: '${_walletId}_mnemonicPassphrase',
@@ -944,6 +944,7 @@ class EthereumWallet extends CoinServiceAPI with WalletCache, WalletDB {
           response.value?.nonce.toBigIntFromHex.toInt(),
       inputs: [],
       outputs: [],
+      numberOfMessages: null,
     );
 
     Address? address = await db.getAddress(
@@ -1035,6 +1036,7 @@ class EthereumWallet extends CoinServiceAPI with WalletCache, WalletDB {
           nonce: tuple.item2,
           inputs: [],
           outputs: [],
+          numberOfMessages: null,
         );
 
         Address? transactionAddress = await db

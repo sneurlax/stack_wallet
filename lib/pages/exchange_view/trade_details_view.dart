@@ -26,6 +26,7 @@ import 'package:stackwallet/services/exchange/trocador/trocador_exchange.dart';
 import 'package:stackwallet/themes/stack_colors.dart';
 import 'package:stackwallet/themes/theme_providers.dart';
 import 'package:stackwallet/utilities/amount/amount.dart';
+import 'package:stackwallet/utilities/amount/amount_formatter.dart';
 import 'package:stackwallet/utilities/assets.dart';
 import 'package:stackwallet/utilities/clipboard_interface.dart';
 import 'package:stackwallet/utilities/constants.dart';
@@ -113,7 +114,7 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
     super.initState();
   }
 
-  String _fetchIconAssetForStatus(String statusString, ThemeAssets assets) {
+  String _fetchIconAssetForStatus(String statusString, IThemeAssets assets) {
     ChangeNowTransactionStatus? status;
     try {
       if (statusString.toLowerCase().startsWith("waiting")) {
@@ -322,11 +323,7 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
                               File(
                                 _fetchIconAssetForStatus(
                                   trade.status,
-                                  ref.watch(
-                                    themeProvider.select(
-                                      (value) => value.assets,
-                                    ),
-                                  ),
+                                  ref.watch(themeAssetsProvider),
                                 ),
                               ),
                               width: 32,
@@ -360,13 +357,9 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
                                   trade.payInCurrency);
                               final amount = sendAmount.toAmount(
                                   fractionDigits: coin.decimals);
-                              text = amount.localizedStringAsFixed(
-                                locale: ref.watch(
-                                  localeServiceChangeNotifierProvider.select(
-                                    (value) => value.locale,
-                                  ),
-                                ),
-                              );
+                              text = ref
+                                  .watch(pAmountFormatter(coin))
+                                  .format(amount);
                             } catch (_) {
                               text = sendAmount.toStringAsFixed(
                                   trade.payInCurrency.toLowerCase() == "xmr"
@@ -393,11 +386,7 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
                               File(
                                 _fetchIconAssetForStatus(
                                   trade.status,
-                                  ref.watch(
-                                    themeProvider.select(
-                                      (value) => value.assets,
-                                    ),
-                                  ),
+                                  ref.watch(themeAssetsProvider),
                                 ),
                               ),
                               width: 32,
@@ -1232,7 +1221,7 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
                           if (trade.exchangeName
                               .startsWith(TrocadorExchange.exchangeName)) {
                             url =
-                                "https://trocador.app/en/checkout${trade.tradeId}";
+                                "https://trocador.app/en/checkout/${trade.tradeId}";
                           }
                       }
                       return ConditionalParent(

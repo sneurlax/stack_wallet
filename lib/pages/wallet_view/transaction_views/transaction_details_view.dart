@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:stackwallet/models/isar/models/blockchain_data/transaction.dart';
+import 'package:stackwallet/models/isar/models/ethereum/eth_contract.dart';
 import 'package:stackwallet/notifications/show_flush_bar.dart';
 import 'package:stackwallet/pages/receive_view/addresses/address_details_view.dart';
 import 'package:stackwallet/pages/wallet_view/sub_widgets/tx_icon.dart';
@@ -19,6 +20,7 @@ import 'package:stackwallet/services/coins/epiccash/epiccash_wallet.dart';
 import 'package:stackwallet/services/coins/manager.dart';
 import 'package:stackwallet/themes/stack_colors.dart';
 import 'package:stackwallet/utilities/amount/amount.dart';
+import 'package:stackwallet/utilities/amount/amount_formatter.dart';
 import 'package:stackwallet/utilities/assets.dart';
 import 'package:stackwallet/utilities/block_explorers.dart';
 import 'package:stackwallet/utilities/constants.dart';
@@ -73,6 +75,7 @@ class _TransactionDetailsViewState
   late final String amountPrefix;
   late final String unit;
   late final bool isTokenTx;
+  late final EthContract? ethContract;
 
   bool showFeePending = false;
 
@@ -94,12 +97,11 @@ class _TransactionDetailsViewState
       amountPrefix = _transaction.type == TransactionType.outgoing ? "-" : "+";
     }
 
-    unit = isTokenTx
-        ? ref
-            .read(mainDBProvider)
-            .getEthContractSync(_transaction.otherData!)!
-            .symbol
-        : coin.ticker;
+    ethContract = isTokenTx
+        ? ref.read(mainDBProvider).getEthContractSync(_transaction.otherData!)
+        : null;
+
+    unit = isTokenTx ? ethContract!.symbol : coin.ticker;
 
     // if (coin == Coin.firo || coin == Coin.firoTestNet) {
     //   showFeePending = true;
@@ -122,6 +124,37 @@ class _TransactionDetailsViewState
           return "Minted";
         } else {
           return "Minting";
+        }
+      }
+    }
+
+    if (coin == Coin.epicCash) {
+      if (_transaction.isCancelled) {
+        return "Cancelled";
+      } else if (type == TransactionType.incoming) {
+        if (tx.isConfirmed(height, coin.requiredConfirmations)) {
+          return "Received";
+        } else {
+          if (_transaction.numberOfMessages == 1) {
+            return "Receiving (waiting for sender)";
+          } else if ((_transaction.numberOfMessages ?? 0) > 1) {
+            return
+            "Receiving (waiting for confirmations)"; // TODO test if the sender still has to open again after the receiver has 2 messages present, ie. sender->receiver->sender->node (yes) vs. sender->receiver->node (no)
+          } else {
+            return "Receiving";
+          }
+        }
+      } else if (type == TransactionType.outgoing) {
+        if (tx.isConfirmed(height, coin.requiredConfirmations)) {
+          return "Sent (confirmed)";
+        } else {
+          if (_transaction.numberOfMessages == 1) {
+            return "Sending (waiting for receiver)";
+          } else if ((_transaction.numberOfMessages ?? 0) > 1) {
+            return "Sending (waiting for confirmations)";
+          } else {
+            return "Sending";
+          }
         }
       }
     }
@@ -446,13 +479,7 @@ class _TransactionDetailsViewState
                                             : CrossAxisAlignment.start,
                                         children: [
                                           SelectableText(
-                                            "$amountPrefix${amount.localizedStringAsFixed(
-                                              locale: ref.watch(
-                                                localeServiceChangeNotifierProvider
-                                                    .select((value) =>
-                                                        value.locale),
-                                              ),
-                                            )} $unit",
+                                            "$amountPrefix${ref.watch(pAmountFormatter(coin)).format(amount, ethContract: ethContract)}",
                                             style: isDesktop
                                                 ? STextStyles
                                                         .desktopTextExtraExtraSmall(
@@ -486,7 +513,7 @@ class _TransactionDetailsViewState
                                                                     .getPrice(
                                                                         coin)
                                                                     .item1),
-                                                      )).toAmount(fractionDigits: 2).localizedStringAsFixed(
+                                                      )).toAmount(fractionDigits: 2).fiatString(
                                                     locale: ref.watch(
                                                       localeServiceChangeNotifierProvider
                                                           .select(
@@ -619,16 +646,37 @@ class _TransactionDetailsViewState
                                                   CustomTextButton(
                                                     text: "Info",
                                                     onTap: () {
-                                                      Navigator.of(context)
-                                                          .pushNamed(
-                                                        AddressDetailsView
-                                                            .routeName,
-                                                        arguments: Tuple2(
-                                                          _transaction.address
-                                                              .value!.id,
-                                                          widget.walletId,
-                                                        ),
-                                                      );
+                                                      if (isDesktop) {
+                                                        showDialog<void>(
+                                                          context: context,
+                                                          builder: (_) =>
+                                                              DesktopDialog(
+                                                            maxHeight:
+                                                                double.infinity,
+                                                            child:
+                                                                AddressDetailsView(
+                                                              addressId:
+                                                                  _transaction
+                                                                      .address
+                                                                      .value!
+                                                                      .id,
+                                                              walletId: widget
+                                                                  .walletId,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      } else {
+                                                        Navigator.of(context)
+                                                            .pushNamed(
+                                                          AddressDetailsView
+                                                              .routeName,
+                                                          arguments: Tuple2(
+                                                            _transaction.address
+                                                                .value!.id,
+                                                            widget.walletId,
+                                                          ),
+                                                        );
+                                                      }
                                                     },
                                                   )
                                                 ],
@@ -920,23 +968,17 @@ class _TransactionDetailsViewState
                                         currentHeight,
                                         coin.requiredConfirmations,
                                       )
-                                        ? fee.localizedStringAsFixed(
-                                            locale: ref.watch(
-                                              localeServiceChangeNotifierProvider
-                                                  .select(
-                                                      (value) => value.locale),
-                                            ),
-                                          )
+                                        ? ref
+                                            .watch(pAmountFormatter(coin))
+                                            .format(
+                                              fee,
+                                              withUnitName: isTokenTx,
+                                            )
                                         : "Pending"
-                                    : fee.localizedStringAsFixed(
-                                        locale: ref.watch(
-                                          localeServiceChangeNotifierProvider
-                                              .select((value) => value.locale),
-                                        ),
-                                      );
-                                if (isTokenTx) {
-                                  feeString += " ${coin.ticker}";
-                                }
+                                    : ref.watch(pAmountFormatter(coin)).format(
+                                          fee,
+                                          withUnitName: isTokenTx,
+                                        );
 
                                 return Row(
                                   mainAxisAlignment:
@@ -1012,6 +1054,7 @@ class _TransactionDetailsViewState
                                 final String height;
 
                                 if (widget.coin == Coin.bitcoincash ||
+                                    widget.coin == Coin.eCash ||
                                     widget.coin == Coin.bitcoincashTestnet) {
                                   height =
                                       "${_transaction.height != null && _transaction.height! > 0 ? _transaction.height! : "Pending"}";
@@ -1115,6 +1158,46 @@ class _TransactionDetailsViewState
                                     ),
                                     SelectableText(
                                       _transaction.nonce.toString(),
+                                      style: isDesktop
+                                          ? STextStyles
+                                                  .desktopTextExtraExtraSmall(
+                                                      context)
+                                              .copyWith(
+                                              color: Theme.of(context)
+                                                  .extension<StackColors>()!
+                                                  .textDark,
+                                            )
+                                          : STextStyles.itemSubtitle12(context),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (kDebugMode)
+                              isDesktop
+                                  ? const _Divider()
+                                  : const SizedBox(
+                                      height: 12,
+                                    ),
+                            if (kDebugMode)
+                              RoundedWhiteContainer(
+                                padding: isDesktop
+                                    ? const EdgeInsets.all(16)
+                                    : const EdgeInsets.all(12),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "Tx sub type",
+                                      style: isDesktop
+                                          ? STextStyles
+                                              .desktopTextExtraExtraSmall(
+                                                  context)
+                                          : STextStyles.itemSubtitle(context),
+                                    ),
+                                    SelectableText(
+                                      _transaction.subType.toString(),
                                       style: isDesktop
                                           ? STextStyles
                                                   .desktopTextExtraExtraSmall(
