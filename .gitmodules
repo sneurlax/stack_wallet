@@ -7,3 +7,6 @@
 [submodule "crypto_plugins/flutter_liblelantus"]
 	path = crypto_plugins/flutter_liblelantus
 	url = https://github.com/cypherstack/flutter_liblelantus.git
+[submodule "crypto_plugins/libxmr"]
+	path = crypto_plugins/libxmr
+	url = https://git.cypherstack.com/julian/libxmr
