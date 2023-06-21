@@ -91,6 +91,13 @@ dependencies:
   web3dart: 2.6.1
   ethereum_addresses: 1.0.2
 
+  # Lightning Plugin
+  ldk_node:
+    git:
+      url: https://github.com/cypherstack/ldk-node-flutter.git
+      ref: ee4ee02a3dd8932a2d9706216d32ce0f90481cf2
+
+
   # Storage plugins
   flutter_secure_storage: ^8.0.0
   hive: ^2.0.5

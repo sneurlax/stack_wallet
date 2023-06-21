@@ -263,6 +263,7 @@ abstract class DefaultNodes {
         isDown: false,
       );
 
+  static const esploraUrl = "https://blockstream.info/testnet/api/";
   static NodeModel getNodeFor(Coin coin) {
     switch (coin) {
       case Coin.bitcoin:
