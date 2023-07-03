@@ -9,4 +9,4 @@
 	url = https://github.com/cypherstack/flutter_liblelantus.git
 [submodule "crypto_plugins/libxmr"]
 	path = crypto_plugins/libxmr
-	url = https://git.cypherstack.com/julian/libxmr
+	url = https://github.com/sneurlax/libxmr
