@@ -18,7 +18,7 @@ import 'package:bip39/src/wordlists/english.dart' as bip39wordlist;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_libmonero/monero/monero.dart';
-import 'package:flutter_libmonero/wownero/wownero.dart';
+import 'package:flutter_libwownero/wownero/wownero.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:stackwallet/notifications/show_flush_bar.dart';

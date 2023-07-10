@@ -32,7 +32,7 @@ import 'package:flutter_libmonero/core/key_service.dart';
 import 'package:flutter_libmonero/core/wallet_creation_service.dart';
 import 'package:flutter_libmonero/view_model/send/output.dart'
     as wownero_output;
-import 'package:flutter_libmonero/wownero/wownero.dart';
+import 'package:flutter_libwownero/wownero/wownero.dart';
 import 'package:isar/isar.dart';
 import 'package:mutex/mutex.dart';
 import 'package:stackwallet/db/hive/db.dart';
