@@ -602,6 +602,13 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
+  flutter_libwownero:
+    dependency: "direct main"
+    description:
+      path: "crypto_plugins/flutter_libwownero"
+      relative: true
+    source: path
+    version: "0.0.1"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -1849,6 +1856,13 @@ packages:
     dependency: "direct main"
     description:
       path: "crypto_plugins/flutter_libwownero/wow_cw_core"
+      relative: true
+    source: path
+    version: "0.0.1"
+  wow_cw_shared_external:
+    dependency: transitive
+    description:
+      path: "crypto_plugins/flutter_libwownero/wow_cw_shared_external"
       relative: true
     source: path
     version: "0.0.1"
