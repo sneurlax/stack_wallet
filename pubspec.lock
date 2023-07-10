@@ -342,7 +342,7 @@ packages:
   cw_wownero:
     dependency: "direct main"
     description:
-      path: "crypto_plugins/flutter_libmonero/cw_wownero"
+      path: "crypto_plugins/flutter_libwownero/cw_wownero"
       relative: true
     source: path
     version: "0.0.1"
@@ -1845,6 +1845,13 @@ packages:
       url: "https://github.com/google/flutter-desktop-embedding.git"
     source: git
     version: "0.1.0"
+  wow_cw_core:
+    dependency: "direct main"
+    description:
+      path: "crypto_plugins/flutter_libwownero/wow_cw_core"
+      relative: true
+    source: path
+    version: "0.0.1"
   xdg_directories:
     dependency: transitive
     description:
