@@ -11,6 +11,7 @@
 import 'dart:isolate';
 
 import 'package:cw_core/wallet_info.dart' as xmr;
+import 'package:wow_cw_core/wallet_info.dart' as wow;
 import 'package:hive/hive.dart';
 import 'package:mutex/mutex.dart';
 import 'package:stackwallet/models/exchange/response_objects/trade.dart';
@@ -65,6 +66,7 @@ class DB {
   Box<String>? _boxTradeNotes;
   Box<String>? _boxFavoriteWallets;
   Box<xmr.WalletInfo>? _walletInfoSource;
+  Box<wow.WowneroWalletInfo>? _wowneroWalletInfoSource;
   Box<dynamic>? _boxPrefs;
   Box<TradeWalletLookup>? _boxTradeLookup;
   Box<dynamic>? _boxDBInfo;
@@ -78,6 +80,9 @@ class DB {
 
   // exposed for monero
   Box<xmr.WalletInfo> get moneroWalletInfoBox => _walletInfoSource!;
+
+  // exposed for wownero
+  Box<wow.WowneroWalletInfo> get wowneroWalletInfoBox => _wowneroWalletInfoSource!;
 
   // mutex for stack backup
   final mutex = Mutex();

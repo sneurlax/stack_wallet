@@ -12,25 +12,26 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:cw_core/monero_transaction_priority.dart';
-import 'package:cw_core/node.dart';
-import 'package:cw_core/pending_transaction.dart';
-import 'package:cw_core/sync_status.dart';
-import 'package:cw_core/transaction_direction.dart';
-import 'package:cw_core/wallet_base.dart';
-import 'package:cw_core/wallet_credentials.dart';
-import 'package:cw_core/wallet_info.dart';
-import 'package:cw_core/wallet_service.dart';
-import 'package:cw_core/wallet_type.dart';
+import 'package:wow_cw_core/monero_transaction_priority.dart';
+import 'package:wow_cw_core/node.dart';
+import 'package:wow_cw_core/pending_transaction.dart';
+import 'package:wow_cw_core/sync_status.dart';
+import 'package:wow_cw_core/transaction_direction.dart';
+import 'package:wow_cw_core/transaction_priority.dart';
+import 'package:wow_cw_core/wallet_base.dart';
+import 'package:wow_cw_core/wallet_credentials.dart';
+import 'package:wow_cw_core/wallet_info.dart';
+import 'package:wow_cw_core/wallet_service.dart';
+import 'package:wow_cw_core/wallet_type.dart';
 import 'package:cw_wownero/api/exceptions/creation_transaction_exception.dart';
 import 'package:cw_wownero/api/wallet.dart';
 import 'package:cw_wownero/pending_wownero_transaction.dart';
 import 'package:cw_wownero/wownero_wallet.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_libmonero/core/key_service.dart';
-import 'package:flutter_libmonero/core/wallet_creation_service.dart';
-import 'package:flutter_libmonero/view_model/send/output.dart'
+import 'package:flutter_libwownero/core/key_service.dart';
+import 'package:flutter_libwownero/core/wallet_creation_service.dart';
+import 'package:flutter_libwownero/view_model/send/output.dart'
     as wownero_output;
 import 'package:flutter_libwownero/wownero/wownero.dart';
 import 'package:isar/isar.dart';
@@ -182,28 +183,28 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
   @override
   Future<Amount> estimateFeeFor(Amount amount, int feeRate) async {
-    MoneroTransactionPriority priority;
+    WowneroTransactionPriority priority;
     FeeRateType feeRateType = FeeRateType.slow;
     switch (feeRate) {
       case 1:
-        priority = MoneroTransactionPriority.regular;
+        priority = WowneroTransactionPriority.regular;
         feeRateType = FeeRateType.average;
         break;
       case 2:
-        priority = MoneroTransactionPriority.medium;
+        priority = WowneroTransactionPriority.medium;
         feeRateType = FeeRateType.average;
         break;
       case 3:
-        priority = MoneroTransactionPriority.fast;
+        priority = WowneroTransactionPriority.fast;
         feeRateType = FeeRateType.fast;
         break;
       case 4:
-        priority = MoneroTransactionPriority.fastest;
+        priority = WowneroTransactionPriority.fastest;
         feeRateType = FeeRateType.fast;
         break;
       case 0:
       default:
-        priority = MoneroTransactionPriority.slow;
+        priority = WowneroTransactionPriority.slow;
         feeRateType = FeeRateType.slow;
         break;
     }
@@ -241,9 +242,9 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
   @override
   Future<void> exit() async {
     if (!_hasCalledExit) {
-      walletBase?.onNewBlock = null;
-      walletBase?.onNewTransaction = null;
-      walletBase?.syncStatusChanged = null;
+      // walletBase?.onNewBlock = null;
+      // walletBase?.onNewTransaction = null;
+      // walletBase?.syncStatusChanged = null;
       _hasCalledExit = true;
       _autoSaveTimer?.cancel();
       await walletBase?.save(prioritySave: true);
@@ -310,7 +311,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
     }
 
     walletService =
-        wownero.createWowneroWalletService(DB.instance.moneroWalletInfoBox);
+        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
     keysStorage = KeyService(_secureStorage);
 
     await _prefs.init();
@@ -344,10 +345,10 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
     // TODO: Wallet Service may need to be switched to Wownero
     walletService =
-        wownero.createWowneroWalletService(DB.instance.moneroWalletInfoBox);
+        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
     keysStorage = KeyService(_secureStorage);
-    WalletInfo walletInfo;
-    WalletCredentials credentials;
+    WowneroWalletInfo walletInfo;
+    WowneroWalletCredentials credentials;
     try {
       String name = _walletId;
       final dirPath =
@@ -359,7 +360,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
         seedWordsLength: seedWordsLength,
       );
 
-      walletInfo = WalletInfo.external(
+      walletInfo = WowneroWalletInfo.external(
         id: WalletBase.idFor(name, WalletType.wownero),
         name: name,
         type: WalletType.wownero,
@@ -402,7 +403,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
       walletInfo.address = wallet?.walletAddresses.address;
       await DB.instance
-          .add<WalletInfo>(boxName: WalletInfo.boxName, value: walletInfo);
+          .add<WowneroWalletInfo>(boxName: WowneroWalletInfo.boxName, value: walletInfo);
       walletBase?.close();
       walletBase = wallet as WowneroWalletBase;
     } catch (e, s) {
@@ -413,10 +414,10 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
     final node = await _getCurrentNode();
     final host = Uri.parse(node.host).host;
     await walletBase?.connectToNode(
-      node: Node(
+      node: WowneroNode(
         uri: "$host:${node.port}",
         type: WalletType.wownero,
-        trusted: node.trusted ?? false,
+        // trusted: node.trusted ?? false,
       ),
     );
     await walletBase?.startSync();
@@ -475,16 +476,16 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
     try {
       final feeRate = args?["feeRate"];
       if (feeRate is FeeRateType) {
-        MoneroTransactionPriority feePriority;
+        WowneroTransactionPriority feePriority;
         switch (feeRate) {
           case FeeRateType.fast:
-            feePriority = MoneroTransactionPriority.fast;
+            feePriority = WowneroTransactionPriority.fast;
             break;
           case FeeRateType.average:
-            feePriority = MoneroTransactionPriority.regular;
+            feePriority = WowneroTransactionPriority.regular;
             break;
           case FeeRateType.slow:
-            feePriority = MoneroTransactionPriority.slow;
+            feePriority = WowneroTransactionPriority.slow;
             break;
           default:
             throw ArgumentError("Invalid use of custom fee");
@@ -602,10 +603,10 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
           .put<dynamic>(boxName: walletId, key: "restoreHeight", value: height);
 
       walletService =
-          wownero.createWowneroWalletService(DB.instance.moneroWalletInfoBox);
+          wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
       keysStorage = KeyService(_secureStorage);
-      WalletInfo walletInfo;
-      WalletCredentials credentials;
+      WowneroWalletInfo walletInfo;
+      WowneroWalletCredentials credentials;
       String name = _walletId;
       final dirPath =
           await _pathForWalletDir(name: name, type: WalletType.wownero);
@@ -616,7 +617,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
         mnemonic: mnemonic.trim(),
       );
       try {
-        walletInfo = WalletInfo.external(
+        walletInfo = WowneroWalletInfo.external(
             id: WalletBase.idFor(name, WalletType.wownero),
             name: name,
             type: WalletType.wownero,
@@ -640,7 +641,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
             await _walletCreationService!.restoreFromSeed(credentials);
         walletInfo.address = wallet.walletAddresses.address;
         await DB.instance
-            .add<WalletInfo>(boxName: WalletInfo.boxName, value: walletInfo);
+            .add<WowneroWalletInfo>(boxName: WowneroWalletInfo.boxName, value: walletInfo);
         walletBase?.close();
         walletBase = wallet as WowneroWalletBase;
 
@@ -656,10 +657,10 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
       final node = await _getCurrentNode();
       final host = Uri.parse(node.host).host;
       await walletBase?.connectToNode(
-        node: Node(
+        node: WowneroNode(
           uri: "$host:${node.port}",
           type: WalletType.wownero,
-          trusted: node.trusted ?? false,
+          // trusted: node.trusted ?? false,
         ),
       );
       await walletBase?.rescan(height: credentials.height);
@@ -740,18 +741,18 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
           walletBase = (await walletService?.openWallet(_walletId, password!))
               as WowneroWalletBase?;
 
-          walletBase!.onNewBlock = onNewBlock;
-          walletBase!.onNewTransaction = onNewTransaction;
-          walletBase!.syncStatusChanged = syncStatusChanged;
+          // walletBase!.onNewBlock = onNewBlock;
+          // walletBase!.onNewTransaction = onNewTransaction;
+          // walletBase!.syncStatusChanged = syncStatusChanged;
 
           if (!(await walletBase!.isConnected())) {
             final node = await _getCurrentNode();
             final host = Uri.parse(node.host).host;
             await walletBase?.connectToNode(
-              node: Node(
+              node: WowneroNode(
                 uri: "$host:${node.port}",
                 type: WalletType.wownero,
-                trusted: node.trusted ?? false,
+                // trusted: node.trusted ?? false,
               ),
             );
           }
@@ -859,10 +860,10 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
     final host = Uri.parse(node.host).host;
     await walletBase?.connectToNode(
-      node: Node(
+      node: WowneroNode(
         uri: "$host:${node.port}",
         type: WalletType.wownero,
-        trusted: node.trusted ?? false,
+        // trusted: node.trusted ?? false,
       ),
     );
 
@@ -912,9 +913,9 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
       numberOfBlocksFast: 10,
       numberOfBlocksAverage: 15,
       numberOfBlocksSlow: 20,
-      fast: MoneroTransactionPriority.fast.raw!,
-      medium: MoneroTransactionPriority.regular.raw!,
-      slow: MoneroTransactionPriority.slow.raw!,
+      fast: WowneroTransactionPriority.fast.raw!,
+      medium: WowneroTransactionPriority.regular.raw!,
+      slow: WowneroTransactionPriority.slow.raw!,
     );
   }
 

@@ -14,6 +14,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_libepiccash/git_versions.dart' as EPIC_VERSIONS;
 import 'package:flutter_libmonero/git_versions.dart' as MONERO_VERSIONS;
+import 'package:flutter_libwownero/git_versions.dart' as WOWNERO_VERSIONS;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart';
 import 'package:lelantus/git_versions.dart' as FIRO_VERSIONS;
