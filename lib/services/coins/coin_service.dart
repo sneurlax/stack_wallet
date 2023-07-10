@@ -27,7 +27,6 @@ import 'package:stackwallet/services/coins/monero/monero_wallet.dart';
 import 'package:stackwallet/services/coins/namecoin/namecoin_wallet.dart';
 import 'package:stackwallet/services/coins/nano/nano_wallet.dart';
 import 'package:stackwallet/services/coins/particl/particl_wallet.dart';
-import 'package:stackwallet/services/coins/wownero/wownero_wallet.dart';
 import 'package:stackwallet/services/transaction_notification_tracker.dart';
 import 'package:stackwallet/utilities/amount/amount.dart';
 import 'package:stackwallet/utilities/enums/coin_enum.dart';
@@ -219,13 +218,15 @@ abstract class CoinServiceAPI {
             tracker: tracker);
 
       case Coin.wownero:
-        return WowneroWallet(
-          walletId: walletId,
-          walletName: walletName,
-          coin: coin,
-          secureStorage: secureStorageInterface,
-          // tracker: tracker,
-        );
+        throw UnimplementedError();
+      // case Coin.wownero:
+      //   return WowneroWallet(
+      //     walletId: walletId,
+      //     walletName: walletName,
+      //     coin: coin,
+      //     secureStorage: secureStorageInterface,
+      //     // tracker: tracker,
+      //   );
 
       case Coin.namecoin:
         return NamecoinWallet(

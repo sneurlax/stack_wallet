@@ -27,7 +27,7 @@ import 'package:stackwallet/services/coins/namecoin/namecoin_wallet.dart'
 import 'package:stackwallet/services/coins/nano/nano_wallet.dart' as nano;
 import 'package:stackwallet/services/coins/particl/particl_wallet.dart'
     as particl;
-import 'package:stackwallet/services/coins/wownero/wownero_wallet.dart' as wow;
+// import 'package:stackwallet/services/coins/wownero/wownero_wallet.dart' as wow;
 import 'package:stackwallet/utilities/constants.dart';
 
 enum Coin {
@@ -346,7 +346,8 @@ extension CoinExt on Coin {
         return particl.MINIMUM_CONFIRMATIONS;
 
       case Coin.wownero:
-        return wow.MINIMUM_CONFIRMATIONS;
+        return 15;
+      // return wow.MINIMUM_CONFIRMATIONS;
 
       case Coin.namecoin:
         return nmc.MINIMUM_CONFIRMATIONS;
