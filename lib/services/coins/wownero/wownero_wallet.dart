@@ -345,7 +345,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
     // TODO: Wallet Service may need to be switched to Wownero
     walletService =
-        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
+        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox);
     keysStorage = KeyService(_secureStorage);
     WowneroWalletInfo walletInfo;
     WowneroWalletCredentials credentials;
