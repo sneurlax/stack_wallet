@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:cw_core/wallet_type.dart';
 import 'package:wow_cw_core/monero_transaction_priority.dart';
 import 'package:wow_cw_core/node.dart';
 import 'package:wow_cw_core/pending_transaction.dart';
@@ -22,7 +23,6 @@ import 'package:wow_cw_core/wallet_base.dart';
 import 'package:wow_cw_core/wallet_credentials.dart';
 import 'package:wow_cw_core/wallet_info.dart';
 import 'package:wow_cw_core/wallet_service.dart';
-import 'package:wow_cw_core/wallet_type.dart';
 import 'package:cw_wownero/api/exceptions/creation_transaction_exception.dart';
 import 'package:cw_wownero/api/wallet.dart';
 import 'package:cw_wownero/pending_wownero_transaction.dart';
@@ -361,9 +361,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
       );
 
       walletInfo = WowneroWalletInfo.external(
-        id: WalletBase.idFor(name, WalletType.wownero),
+        id: WalletBase.idFor(name),
         name: name,
-        type: WalletType.wownero,
         isRecovery: false,
         restoreHeight: credentials.height ?? 0,
         date: DateTime.now(),
@@ -379,7 +378,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
         walletService: walletService,
         keyService: keysStorage,
       );
-      _walletCreationService?.changeWalletType();
+      // _walletCreationService?.changeWalletType();
       // To restore from a seed
       final wallet = await _walletCreationService?.create(credentials);
 
@@ -392,7 +391,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
       await DB.instance.put<dynamic>(
           boxName: walletId, key: "restoreHeight", value: bufferedCreateHeight);
-      walletInfo.restoreHeight = bufferedCreateHeight;
+      // walletInfo.restoreHeight = bufferedCreateHeight;
 
       await _secureStorage.write(
           key: '${_walletId}_mnemonic', value: wallet?.seed.trim());
@@ -414,9 +413,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
     final node = await _getCurrentNode();
     final host = Uri.parse(node.host).host;
     await walletBase?.connectToNode(
-      node: WowneroNode(
+      node: Node(
         uri: "$host:${node.port}",
-        type: WalletType.wownero,
         // trusted: node.trusted ?? false,
       ),
     );
@@ -618,9 +616,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
       );
       try {
         walletInfo = WowneroWalletInfo.external(
-            id: WalletBase.idFor(name, WalletType.wownero),
+            id: WalletBase.idFor(name),
             name: name,
-            type: WalletType.wownero,
             isRecovery: false,
             restoreHeight: credentials.height ?? 0,
             date: DateTime.now(),
@@ -635,7 +632,7 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
           walletService: walletService,
           keyService: keysStorage,
         );
-        _walletCreationService!.changeWalletType();
+        // _walletCreationService!.changeWalletType();
         // To restore from a seed
         final wallet =
             await _walletCreationService!.restoreFromSeed(credentials);
@@ -657,9 +654,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
       final node = await _getCurrentNode();
       final host = Uri.parse(node.host).host;
       await walletBase?.connectToNode(
-        node: WowneroNode(
+        node: Node(
           uri: "$host:${node.port}",
-          type: WalletType.wownero,
           // trusted: node.trusted ?? false,
         ),
       );
@@ -749,9 +745,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
             final node = await _getCurrentNode();
             final host = Uri.parse(node.host).host;
             await walletBase?.connectToNode(
-              node: WowneroNode(
+              node: Node(
                 uri: "$host:${node.port}",
-                type: WalletType.wownero,
                 // trusted: node.trusted ?? false,
               ),
             );
@@ -860,9 +855,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
     final host = Uri.parse(node.host).host;
     await walletBase?.connectToNode(
-      node: WowneroNode(
+      node: Node(
         uri: "$host:${node.port}",
-        type: WalletType.wownero,
         // trusted: node.trusted ?? false,
       ),
     );
