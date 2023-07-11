@@ -16,6 +16,7 @@ import 'package:cw_core/node.dart';
 import 'package:cw_core/unspent_coins_info.dart';
 import 'package:cw_core/wallet_info.dart';
 import 'package:cw_core/wallet_type.dart';
+import 'package:wow_cw_core/wallet_info.dart' as wow_info_yo;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -156,6 +157,7 @@ void main() async {
   if (!Hive.isAdapterRegistered(WalletInfoAdapter().typeId)) {
     Hive.registerAdapter(WalletInfoAdapter());
   }
+  Hive.registerAdapter(wow_info_yo.WalletInfoAdapter());
 
   Hive.registerAdapter(WalletTypeAdapter());
 
