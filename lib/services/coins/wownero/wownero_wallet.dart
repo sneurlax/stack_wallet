@@ -240,9 +240,9 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
   @override
   Future<void> exit() async {
     if (!_hasCalledExit) {
-      // walletBase?.onNewBlock = null;
-      // walletBase?.onNewTransaction = null;
-      // walletBase?.syncStatusChanged = null;
+      walletBase?.onNewBlock = null;
+      walletBase?.onNewTransaction = null;
+      walletBase?.syncStatusChanged = null;
       _hasCalledExit = true;
       _autoSaveTimer?.cancel();
       await walletBase?.save(prioritySave: true);
@@ -733,9 +733,9 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
           walletBase = (await walletService?.openWallet(_walletId, password!))
               as WowneroWalletBase?;
 
-          // walletBase!.onNewBlock = onNewBlock;
-          // walletBase!.onNewTransaction = onNewTransaction;
-          // walletBase!.syncStatusChanged = syncStatusChanged;
+          walletBase!.onNewBlock = onNewBlock;
+          walletBase!.onNewTransaction = onNewTransaction;
+          walletBase!.syncStatusChanged = syncStatusChanged;
 
           if (!(await walletBase!.isConnected())) {
             final node = await _getCurrentNode();
