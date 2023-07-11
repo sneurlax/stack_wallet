@@ -12,17 +12,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:cw_core/wallet_type.dart';
-import 'package:wow_cw_core/monero_transaction_priority.dart';
-import 'package:wow_cw_core/node.dart';
-import 'package:wow_cw_core/pending_transaction.dart';
-import 'package:wow_cw_core/sync_status.dart';
-import 'package:wow_cw_core/transaction_direction.dart';
-import 'package:wow_cw_core/transaction_priority.dart';
-import 'package:wow_cw_core/wallet_base.dart';
-import 'package:wow_cw_core/wallet_credentials.dart';
-import 'package:wow_cw_core/wallet_info.dart';
-import 'package:wow_cw_core/wallet_service.dart';
 import 'package:cw_wownero/api/exceptions/creation_transaction_exception.dart';
 import 'package:cw_wownero/api/wallet.dart';
 import 'package:cw_wownero/pending_wownero_transaction.dart';
@@ -60,6 +49,15 @@ import 'package:stackwallet/utilities/logger.dart';
 import 'package:stackwallet/utilities/prefs.dart';
 import 'package:stackwallet/utilities/stack_file_system.dart';
 import 'package:tuple/tuple.dart';
+import 'package:wow_cw_core/monero_transaction_priority.dart';
+import 'package:wow_cw_core/node.dart';
+import 'package:wow_cw_core/pending_transaction.dart';
+import 'package:wow_cw_core/sync_status.dart';
+import 'package:wow_cw_core/transaction_direction.dart';
+import 'package:wow_cw_core/wallet_base.dart';
+import 'package:wow_cw_core/wallet_credentials.dart';
+import 'package:wow_cw_core/wallet_info.dart';
+import 'package:wow_cw_core/wallet_service.dart';
 
 const int MINIMUM_CONFIRMATIONS = 15;
 
@@ -310,8 +308,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
           "Attempted to initialize an existing wallet using an unknown wallet ID!");
     }
 
-    walletService =
-        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
+    walletService = wownero
+        .createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
     keysStorage = KeyService(_secureStorage);
 
     await _prefs.init();
@@ -351,9 +349,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
     WowneroWalletCredentials credentials;
     try {
       String name = _walletId;
-      final dirPath =
-          await _pathForWalletDir(name: name, type: WalletType.wownero);
-      final path = await _pathForWallet(name: name, type: WalletType.wownero);
+      final dirPath = await _pathForWalletDir(name: name);
+      final path = await _pathForWallet(name: name);
       credentials = wownero.createWowneroNewWalletCredentials(
         name: name,
         language: "English",
@@ -401,8 +398,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
       );
 
       walletInfo.address = wallet?.walletAddresses.address;
-      await DB.instance
-          .add<WowneroWalletInfo>(boxName: WowneroWalletInfo.boxName, value: walletInfo);
+      await DB.instance.add<WowneroWalletInfo>(
+          boxName: WowneroWalletInfo.boxName, value: walletInfo);
       walletBase?.close();
       walletBase = wallet as WowneroWalletBase;
     } catch (e, s) {
@@ -600,15 +597,14 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
       await DB.instance
           .put<dynamic>(boxName: walletId, key: "restoreHeight", value: height);
 
-      walletService =
-          wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
+      walletService = wownero
+          .createWowneroWalletService(DB.instance.wowneroWalletInfoBox); //ha
       keysStorage = KeyService(_secureStorage);
       WowneroWalletInfo walletInfo;
       WowneroWalletCredentials credentials;
       String name = _walletId;
-      final dirPath =
-          await _pathForWalletDir(name: name, type: WalletType.wownero);
-      final path = await _pathForWallet(name: name, type: WalletType.wownero);
+      final dirPath = await _pathForWalletDir(name: name);
+      final path = await _pathForWallet(name: name);
       credentials = wownero.createWowneroRestoreWalletFromSeedCredentials(
         name: name,
         height: height,
@@ -637,8 +633,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
         final wallet =
             await _walletCreationService!.restoreFromSeed(credentials);
         walletInfo.address = wallet.walletAddresses.address;
-        await DB.instance
-            .add<WowneroWalletInfo>(boxName: WowneroWalletInfo.boxName, value: walletInfo);
+        await DB.instance.add<WowneroWalletInfo>(
+            boxName: WowneroWalletInfo.boxName, value: walletInfo);
         walletBase?.close();
         walletBase = wallet as WowneroWalletBase;
 
@@ -1071,11 +1067,10 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
   Future<String> _pathForWalletDir({
     required String name,
-    required WalletType type,
   }) async {
     Directory root = await StackFileSystem.applicationRootDirectory();
 
-    final prefix = walletTypeToString(type).toLowerCase();
+    const prefix = "wownero";
     final walletsDir = Directory('${root.path}/wallets');
     final walletDire = Directory('${walletsDir.path}/$prefix/$name');
 
@@ -1088,10 +1083,8 @@ class WowneroWallet extends CoinServiceAPI with WalletCache, WalletDB {
 
   Future<String> _pathForWallet({
     required String name,
-    required WalletType type,
   }) async =>
-      await _pathForWalletDir(name: name, type: type)
-          .then((path) => '$path/$name');
+      await _pathForWalletDir(name: name).then((path) => '$path/$name');
 
   Future<NodeModel> _getCurrentNode() async {
     return NodeService(secureStorageInterface: _secureStorage)

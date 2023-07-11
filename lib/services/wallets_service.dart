@@ -404,7 +404,7 @@ class WalletsService extends ChangeNotifier {
           wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox);
       await wowService.remove(walletId);
       Logging.instance
-          .log("monero wallet: $walletId deleted", level: LogLevel.Info);
+          .log("wownero wallet: $walletId deleted", level: LogLevel.Info);
     } else if (coinFromPrettyName(shell['coin'] as String) == Coin.monero) {
       final xmrService =
           monero.createMoneroWalletService(DB.instance.moneroWalletInfoBox);
