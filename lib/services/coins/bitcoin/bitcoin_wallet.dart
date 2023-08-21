@@ -13,11 +13,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:bech32/bech32.dart';
-import 'package:bip32/bip32.dart' as bip32;
+// import 'package:bech32/bech32.dart';
+// import 'package:bip32/bip32.dart' as bip32;
 import 'package:bip39/bip39.dart' as bip39;
-import 'package:bitcoindart/bitcoindart.dart';
-import 'package:bs58check/bs58check.dart' as bs58check;
+import 'package:coinlib_flutter/coinlib_flutter.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
@@ -45,14 +44,13 @@ import 'package:stackwallet/services/node_service.dart';
 import 'package:stackwallet/services/transaction_notification_tracker.dart';
 import 'package:stackwallet/utilities/address_utils.dart';
 import 'package:stackwallet/utilities/amount/amount.dart';
-import 'package:stackwallet/utilities/bip32_utils.dart';
+// import 'package:stackwallet/utilities/bip32_utils.dart';
 import 'package:stackwallet/utilities/constants.dart';
 import 'package:stackwallet/utilities/default_nodes.dart';
 import 'package:stackwallet/utilities/enums/coin_enum.dart';
 import 'package:stackwallet/utilities/enums/derive_path_type_enum.dart';
 import 'package:stackwallet/utilities/enums/fee_rate_type_enum.dart';
 import 'package:stackwallet/utilities/flutter_secure_storage_interface.dart';
-import 'package:stackwallet/utilities/format.dart';
 import 'package:stackwallet/utilities/logger.dart';
 import 'package:stackwallet/utilities/paynym_is_api.dart';
 import 'package:stackwallet/utilities/prefs.dart';
@@ -74,6 +72,25 @@ const String GENESIS_HASH_MAINNET =
     "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
 const String GENESIS_HASH_TESTNET =
     "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943";
+
+const NetworkParams MAIN_NET = NetworkParams(
+  wifPrefix: 0x80,
+  p2pkhPrefix: 0x00,
+  p2shPrefix: 0x05,
+  privHDPrefix: 0x0488ade4,
+  pubHDPrefix: 0x0488b21e,
+  bech32Hrp: "bc",
+  messagePrefix: '\x18Bitcoin Signed Message:\n',
+);
+const NetworkParams TEST_NET = NetworkParams(
+  wifPrefix: 0xef,
+  p2pkhPrefix: 0x6f,
+  p2shPrefix: 0xc4,
+  privHDPrefix: 0x04358394,
+  pubHDPrefix: 0x043587cf,
+  bech32Hrp: "tb",
+  messagePrefix: "\x18Bitcoin Signed Message:\n",
+);
 
 String constructDerivePath({
   required DerivePathType derivePathType,
@@ -187,12 +204,12 @@ class BitcoinWallet extends CoinServiceAPI
 
   late final TransactionNotificationTracker txTracker;
 
-  NetworkType get _network {
+  NetworkParams get _network {
     switch (coin) {
       case Coin.bitcoin:
-        return bitcoin;
+        return MAIN_NET;
       case Coin.bitcoinTestNet:
-        return testnet;
+        return TEST_NET;
       default:
         throw Exception("Invalid network type!");
     }
@@ -329,37 +346,19 @@ class BitcoinWallet extends CoinServiceAPI
   int get storedChainHeight => getCachedChainHeight();
 
   DerivePathType addressType({required String address}) {
-    Uint8List? decodeBase58;
-    Segwit? decodeBech32;
-    try {
-      decodeBase58 = bs58check.decode(address);
-    } catch (err) {
-      // Base58check decode fail
-    }
-    if (decodeBase58 != null) {
-      if (decodeBase58[0] == _network.pubKeyHash) {
-        // P2PKH
+    final addr = Address.fromString(address, _network);
+
+    switch (addr.runtimeType) {
+      case P2PKHAddress:
         return DerivePathType.bip44;
-      }
-      if (decodeBase58[0] == _network.scriptHash) {
-        // P2SH
+      case P2SHAddress:
         return DerivePathType.bip49;
-      }
-      throw ArgumentError('Invalid version or Network mismatch');
-    } else {
-      try {
-        decodeBech32 = segwit.decode(address);
-      } catch (err) {
-        // Bech32 decode fail
-      }
-      if (_network.bech32 != decodeBech32!.hrp) {
-        throw ArgumentError('Invalid prefix or Network mismatch');
-      }
-      if (decodeBech32.version != 0) {
-        throw ArgumentError('Invalid address version');
-      }
-      // P2WPKH
-      return DerivePathType.bip84;
+      case P2WPKHAddress:
+        return DerivePathType.bip84;
+
+      // todo handle others
+      default:
+        throw ArgumentError("Unsupported address");
     }
   }
 
@@ -436,7 +435,7 @@ class BitcoinWallet extends CoinServiceAPI
     int maxNumberOfIndexesToCheck,
     int maxUnusedAddressGap,
     int txCountBatchSize,
-    bip32.BIP32 root,
+    HDPrivateKey root,
     DerivePathType type,
     int chain,
   ) async {
@@ -458,31 +457,51 @@ class BitcoinWallet extends CoinServiceAPI
       for (int j = 0; j < txCountBatchSize; j++) {
         final derivePath = constructDerivePath(
           derivePathType: type,
-          networkWIF: root.network.wif,
+          networkWIF: _network.wifPrefix,
           chain: chain,
           index: index + j,
         );
-        final node = await Bip32Utils.getBip32NodeFromRoot(root, derivePath);
+        final node = root.derivePath(derivePath);
 
         String addressString;
-        final data = PaymentData(pubkey: node.publicKey);
         isar_models.AddressType addrType;
         switch (type) {
           case DerivePathType.bip44:
-            addressString = P2PKH(data: data, network: _network).data.address!;
+            final addr = P2PKHAddress.fromPublicKey(
+              node.publicKey,
+              version: _network.p2pkhPrefix,
+            );
+
+            addressString = addr.toString();
             addrType = isar_models.AddressType.p2pkh;
             break;
           case DerivePathType.bip49:
-            addressString = P2SH(
-                    data: PaymentData(
-                        redeem: P2WPKH(data: data, network: _network).data),
-                    network: _network)
-                .data
-                .address!;
+            // addressString = P2SH(
+            //         data: PaymentData(
+            //             redeem: P2WPKH(data: data, network: _network).data),
+            //         network: _network)
+            //     .data
+            //     .address!;
+
+            // todo ??????????????????
+            final adr = P2WPKHAddress.fromPublicKey(
+              node.publicKey,
+              hrp: _network.bech32Hrp,
+            );
+            final addr = P2SHAddress.fromHash(
+              adr.program.pkHash,
+              version: _network.p2shPrefix,
+            );
+
+            addressString = addr.toString();
             addrType = isar_models.AddressType.p2sh;
             break;
           case DerivePathType.bip84:
-            addressString = P2WPKH(network: _network, data: data).data.address!;
+            final addr = P2WPKHAddress.fromPublicKey(
+              node.publicKey,
+              hrp: _network.bech32Hrp,
+            );
+            addressString = addr.toString();
             addrType = isar_models.AddressType.p2wpkh;
             break;
           default:
@@ -492,7 +511,7 @@ class BitcoinWallet extends CoinServiceAPI
         final address = isar_models.Address(
           walletId: walletId,
           value: addressString,
-          publicKey: node.publicKey,
+          publicKey: node.publicKey.data,
           type: addrType,
           derivationIndex: index + j,
           derivationPath: isar_models.DerivationPath()..value = derivePath,
@@ -564,10 +583,11 @@ class BitcoinWallet extends CoinServiceAPI
   }) async {
     longMutex = true;
 
-    final root = await Bip32Utils.getBip32Root(
-      mnemonic,
-      mnemonicPassphrase,
-      _network,
+    final root = HDPrivateKey.fromSeed(
+      bip39.mnemonicToSeed(
+        mnemonic,
+        passphrase: mnemonicPassphrase,
+      ),
     );
 
     final deriveTypes = [
@@ -1373,7 +1393,12 @@ class BitcoinWallet extends CoinServiceAPI
 
   @override
   bool validateAddress(String address) {
-    return Address.validateAddress(address, _network);
+    try {
+      final _ = Address.fromString(address, _network);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -1580,37 +1605,60 @@ class BitcoinWallet extends CoinServiceAPI
 
     final derivePath = constructDerivePath(
       derivePathType: derivePathType,
-      networkWIF: _network.wif,
+      networkWIF: _network.wifPrefix,
       chain: chain,
       index: index,
     );
-    final node = await Bip32Utils.getBip32Node(
-      _mnemonic!,
-      _mnemonicPassphrase!,
-      _network,
-      derivePath,
+
+    final root = HDPrivateKey.fromSeed(
+      bip39.mnemonicToSeed(
+        _mnemonic!,
+        passphrase: _mnemonicPassphrase!,
+      ),
     );
 
-    final data = PaymentData(pubkey: node.publicKey);
+    final node = root.derivePath(derivePath);
+
     String address;
     isar_models.AddressType addrType;
 
     switch (derivePathType) {
       case DerivePathType.bip44:
-        address = P2PKH(data: data, network: _network).data.address!;
+        final addr = P2PKHAddress.fromPublicKey(
+          node.publicKey,
+          version: _network.p2pkhPrefix,
+        );
+
+        address = addr.toString();
         addrType = isar_models.AddressType.p2pkh;
         break;
       case DerivePathType.bip49:
-        address = P2SH(
-                data: PaymentData(
-                    redeem: P2WPKH(data: data, network: _network).data),
-                network: _network)
-            .data
-            .address!;
+        // addressString = P2SH(
+        //         data: PaymentData(
+        //             redeem: P2WPKH(data: data, network: _network).data),
+        //         network: _network)
+        //     .data
+        //     .address!;
+
+        // todo ??????????????????
+        final adr = P2WPKHAddress.fromPublicKey(
+          node.publicKey,
+          hrp: _network.bech32Hrp,
+        );
+        final addr = P2SHAddress.fromHash(
+          adr.program.pkHash,
+          version: _network.p2shPrefix,
+        );
+
+        address = addr.toString();
         addrType = isar_models.AddressType.p2sh;
         break;
       case DerivePathType.bip84:
-        address = P2WPKH(network: _network, data: data).data.address!;
+        final addr = P2WPKHAddress.fromPublicKey(
+          node.publicKey,
+          hrp: _network.bech32Hrp,
+        );
+        address = addr.toString();
         addrType = isar_models.AddressType.p2wpkh;
         break;
       default:
@@ -1620,7 +1668,7 @@ class BitcoinWallet extends CoinServiceAPI
     return isar_models.Address(
       walletId: walletId,
       value: address,
-      publicKey: node.publicKey,
+      publicKey: node.publicKey.data,
       type: addrType,
       derivationIndex: index,
       derivationPath: isar_models.DerivationPath()..value = derivePath,
@@ -1716,10 +1764,12 @@ class BitcoinWallet extends CoinServiceAPI
         if (batches[batchNumber] == null) {
           batches[batchNumber] = {};
         }
-        final scripthash =
-            AddressUtils.convertToScriptHash(allAddresses[i].value, _network);
+        final scriptHash = AddressUtils.convertToScriptHash(
+          allAddresses[i].value,
+          _network,
+        );
         batches[batchNumber]!.addAll({
-          scripthash: [scripthash]
+          scriptHash: [scriptHash]
         });
         if (i % batchSizeMax == batchSizeMax - 1) {
           batchNumber++;
@@ -2695,7 +2745,7 @@ class BitcoinWallet extends CoinServiceAPI
 
         final address = await db.getAddress(walletId, sd.utxo.address!);
         if (address?.derivationPath != null) {
-          final bip32.BIP32 node;
+          final HDPrivateKey node;
           if (address!.subType == isar_models.AddressSubType.paynymReceive) {
             final code = await paymentCodeStringByKey(address.otherData!);
 
@@ -2706,28 +2756,22 @@ class BitcoinWallet extends CoinServiceAPI
               index: address.derivationIndex,
             );
 
-            node = bip32.BIP32.fromPrivateKey(
-              privateKey,
-              bip47base.chainCode,
-              bip32.NetworkType(
-                wif: _network.wif,
-                bip32: bip32.Bip32Type(
-                  public: _network.bip32.public,
-                  private: _network.bip32.private,
-                ),
-              ),
+            final ecPrivateKey = ECPrivateKey(privateKey);
+            node = HDPrivateKey.fromKeyAndChainCode(
+              ecPrivateKey,
+              bip47base.chaincode,
             );
           } else {
-            node = await Bip32Utils.getBip32Node(
+            final seed = bip39.mnemonicToSeed(
               (await mnemonicString)!,
-              (await mnemonicPassphrase)!,
-              _network,
-              address.derivationPath!.value,
+              passphrase: (await mnemonicPassphrase)!,
             );
+            final root = HDPrivateKey.fromSeed(seed);
+            node = root.derivePath(address.derivationPath!.value);
           }
 
-          wif = node.toWIF();
-          pubKey = Format.uint8listToString(node.publicKey);
+          wif = node.encode(_network.wifPrefix);
+          pubKey = node.publicKey.hex;
         }
 
         if (wif == null || pubKey == null) {
@@ -2758,41 +2802,37 @@ class BitcoinWallet extends CoinServiceAPI
         }
 
         if (wif != null && pubKey != null) {
-          final PaymentData data;
+          final Address addr;
           final Uint8List? redeemScript;
+          final pubkey = ECPublicKey.fromHex(pubKey);
 
           switch (sd.derivePathType) {
             case DerivePathType.bip44:
-              data = P2PKH(
-                data: PaymentData(
-                  pubkey: Format.stringToUint8List(pubKey),
-                ),
-                network: _network,
-              ).data;
+              addr = P2PKHAddress.fromPublicKey(
+                pubkey,
+                version: _network.p2pkhPrefix,
+              );
               redeemScript = null;
               break;
 
             case DerivePathType.bip49:
-              final p2wpkh = P2WPKH(
-                data: PaymentData(
-                  pubkey: Format.stringToUint8List(pubKey),
-                ),
-                network: _network,
-              ).data;
-              redeemScript = p2wpkh.output;
-              data = P2SH(
-                data: PaymentData(redeem: p2wpkh),
-                network: _network,
-              ).data;
+              final adr = P2WPKHAddress.fromPublicKey(
+                pubkey,
+                hrp: _network.bech32Hrp,
+              );
+
+              redeemScript = adr.program.script.compiled;
+              addr = P2SHAddress.fromHash(
+                adr.program.pkHash,
+                version: _network.p2shPrefix,
+              );
               break;
 
             case DerivePathType.bip84:
-              data = P2WPKH(
-                data: PaymentData(
-                  pubkey: Format.stringToUint8List(pubKey),
-                ),
-                network: _network,
-              ).data;
+              addr = P2WPKHAddress.fromPublicKey(
+                pubkey,
+                hrp: _network.bech32Hrp,
+              );
               redeemScript = null;
               break;
 
@@ -2800,14 +2840,11 @@ class BitcoinWallet extends CoinServiceAPI
               throw Exception("DerivePathType unsupported");
           }
 
-          final keyPair = ECPair.fromWIF(
-            wif,
-            network: _network,
-          );
+          final hdKey = HDPrivateKey.decode(wif, _network.wifPrefix);
 
           sd.redeemScript = redeemScript;
-          sd.output = data.output;
-          sd.keyPair = keyPair;
+          sd.output = addr.program.script.compiled;
+          sd.keyPair = hdKey;
         }
       }
 
@@ -2828,33 +2865,44 @@ class BitcoinWallet extends CoinServiceAPI
     Logging.instance
         .log("Starting buildTransaction ----------", level: LogLevel.Info);
 
-    final txb = TransactionBuilder(network: _network);
-    txb.setVersion(1);
+    final List<Input> inputs = [];
+    final List<Output> outputs = [];
 
     // Add transaction inputs
     for (var i = 0; i < utxoSigningData.length; i++) {
-      final txid = utxoSigningData[i].utxo.txid;
-      txb.addInput(
-        txid,
-        utxoSigningData[i].utxo.vout,
-        null,
-        utxoSigningData[i].output!,
+      inputs.add(
+        Input.match(
+          RawInput(
+            prevOut: OutPoint(
+              hexToBytes(utxoSigningData[i].utxo.txid),
+              utxoSigningData[i].utxo.vout,
+            ),
+            scriptSig: utxoSigningData[i].output!,
+          ),
+        ),
       );
     }
 
     // Add transaction output
     for (var i = 0; i < recipients.length; i++) {
-      txb.addOutput(recipients[i], satoshiAmounts[i]);
+      final addr = Address.fromString(recipients[i], _network);
+      outputs.add(
+        Output.fromAddress(
+          BigInt.from(satoshiAmounts[i]),
+          addr,
+        ),
+      );
     }
+
+    Transaction tx = Transaction(inputs: inputs, outputs: outputs);
 
     try {
       // Sign the transaction accordingly
       for (var i = 0; i < utxoSigningData.length; i++) {
-        txb.sign(
-          vin: i,
-          keyPair: utxoSigningData[i].keyPair!,
-          witnessValue: utxoSigningData[i].utxo.value,
-          redeemScript: utxoSigningData[i].redeemScript,
+        tx = tx.sign(
+          inputN: i,
+          key: utxoSigningData[i].keyPair!.privateKey,
+          value: BigInt.from(utxoSigningData[i].utxo.value),
         );
       }
     } catch (e, s) {
@@ -2863,10 +2911,10 @@ class BitcoinWallet extends CoinServiceAPI
       rethrow;
     }
 
-    final builtTx = txb.build();
-    final vSize = builtTx.virtualSize();
+    // todo ????????????
+    final vSize = tx.size;
 
-    return {"hex": builtTx.toHex(), "vSize": vSize};
+    return {"hex": tx.toHex(), "vSize": vSize};
   }
 
   @override
@@ -3064,12 +3112,13 @@ class BitcoinWallet extends CoinServiceAPI
 
   @override
   Future<String> get xpub async {
-    final node = await Bip32Utils.getBip32Root(
-      (await mnemonic).join(" "),
-      await mnemonicPassphrase ?? "",
-      _network,
-    );
-
-    return node.neutered().toBase58();
+    throw UnimplementedError();
+    // final node = await Bip32Utils.getBip32Root(
+    //   (await mnemonic).join(" "),
+    //   await mnemonicPassphrase ?? "",
+    //   _network,
+    // );
+    //
+    // return node.neutered().toBase58();
   }
 }

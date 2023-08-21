@@ -13,11 +13,13 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:bip32/bip32.dart' as bip32;
+import 'package:bip39/bip39.dart' as bip39;
 import 'package:bip47/bip47.dart';
 import 'package:bip47/src/util.dart';
-import 'package:bitcoindart/bitcoindart.dart' as btc_dart;
+import 'package:bitcoindart/bitcoindart.dart' as bitcoindart;
 import 'package:bitcoindart/src/utils/constants/op.dart' as op;
 import 'package:bitcoindart/src/utils/script.dart' as bscript;
+import 'package:coinlib_flutter/coinlib_flutter.dart' as coinlib;
 import 'package:isar/isar.dart';
 import 'package:pointycastle/digests/sha256.dart';
 import 'package:stackwallet/db/isar/main_db.dart';
@@ -26,8 +28,8 @@ import 'package:stackwallet/exceptions/wallet/insufficient_balance_exception.dar
 import 'package:stackwallet/exceptions/wallet/paynym_send_exception.dart';
 import 'package:stackwallet/models/isar/models/isar_models.dart';
 import 'package:stackwallet/models/signing_data.dart';
+import 'package:stackwallet/services/coins/bitcoin/bitcoin_wallet.dart';
 import 'package:stackwallet/utilities/amount/amount.dart';
-import 'package:stackwallet/utilities/bip32_utils.dart';
 import 'package:stackwallet/utilities/bip47_utils.dart';
 import 'package:stackwallet/utilities/enums/coin_enum.dart';
 import 'package:stackwallet/utilities/flutter_secure_storage_interface.dart';
@@ -57,7 +59,7 @@ mixin PaynymWalletInterface {
   // passed in wallet data
   late final String _walletId;
   late final String _walletName;
-  late final btc_dart.NetworkType _network;
+  late final coinlib.NetworkParams _network;
   late final Coin _coin;
   late final MainDB _db;
   late final ElectrumX _electrumXClient;
@@ -93,7 +95,7 @@ mixin PaynymWalletInterface {
   void initPaynymWalletInterface({
     required String walletId,
     required String walletName,
-    required btc_dart.NetworkType network,
+    required coinlib.NetworkParams network,
     required Coin coin,
     required MainDB db,
     required ElectrumX electrumXClient,
@@ -108,22 +110,18 @@ mixin PaynymWalletInterface {
     required int Function({
       required int vSize,
       required int feeRatePerKB,
-    })
-        estimateTxFee,
+    }) estimateTxFee,
     required Future<Map<String, dynamic>> Function({
       required String address,
       required Amount amount,
       Map<String, dynamic>? args,
-    })
-        prepareSend,
+    }) prepareSend,
     required Future<int> Function({
       required String address,
-    })
-        getTxCount,
+    }) getTxCount,
     required Future<List<SigningData>> Function(
       List<UTXO> utxosToUse,
-    )
-        fetchBuildTxData,
+    ) fetchBuildTxData,
     required Future<void> Function() refresh,
     required Future<void> Function() checkChangeAddressForTransactions,
   }) {
@@ -149,10 +147,18 @@ mixin PaynymWalletInterface {
     _checkChangeAddressForTransactions = checkChangeAddressForTransactions;
   }
 
-  // convenience getter
-  btc_dart.NetworkType get networkType => _network;
+  // conversion getter
+  bitcoindart.NetworkType get networkType {
+    if (_network == MAIN_NET) {
+      return bitcoindart.bitcoin;
+    } else if (_network == TEST_NET) {
+      return bitcoindart.testnet;
+    } else {
+      throw ArgumentError("Bad network params");
+    }
+  }
 
-  Future<bip32.BIP32> getBip47BaseNode() async {
+  Future<coinlib.HDPrivateKey> getBip47BaseNode() async {
     final root = await _getRootNode();
     final node = root.derivePath(
       _basePaynymDerivePath(
@@ -162,6 +168,43 @@ mixin PaynymWalletInterface {
     return node;
   }
 
+  Future<bip32.BIP32> convertNode(coinlib.HDPrivateKey key) async {
+    final seed = bip39.mnemonicToSeed(
+      (await _getMnemonicString())!,
+      passphrase: (await _getMnemonicPassphrase())!,
+    );
+
+    final bip32.BIP32 r = bip32.BIP32.fromSeed(seed);
+
+    final rwif = r.toWIF();
+    print("AAA: rwif = $rwif");
+    print("AAA: bytes = ${rwif.fromBase58}");
+    print("AAA: bytes = ${rwif.fromBase58Check}");
+
+    return bip32.BIP32.fromPrivateKey(
+      key.privateKey.data,
+      key.chaincode,
+      bip32.NetworkType(
+        wif: _network.wifPrefix,
+        bip32: bip32.Bip32Type(
+          public: _network.pubHDPrefix,
+          private: _network.privHDPrefix,
+        ),
+      ),
+    );
+
+    // return bip32.BIP32.fromBase58(
+    //   key.encode(_network.wifPrefix),
+    //   bip32.NetworkType(
+    //     wif: _network.wifPrefix,
+    //     bip32: bip32.Bip32Type(
+    //       public: _network.pubHDPrefix,
+    //       private: _network.privHDPrefix,
+    //     ),
+    //   ),
+    // );
+  }
+
   Future<Uint8List> getPrivateKeyForPaynymReceivingAddress({
     required String paymentCodeString,
     required int index,
@@ -169,7 +212,7 @@ mixin PaynymWalletInterface {
     final bip47base = await getBip47BaseNode();
 
     final paymentAddress = PaymentAddress(
-      bip32Node: bip47base.derive(index),
+      bip32Node: await convertNode(bip47base),
       paymentCode: PaymentCode.fromPaymentCode(
         paymentCodeString,
         networkType: networkType,
@@ -252,7 +295,7 @@ mixin PaynymWalletInterface {
     );
 
     final paymentAddress = PaymentAddress(
-      bip32Node: node.derive(index),
+      bip32Node: await convertNode(node.derive(index)),
       paymentCode: sender,
       networkType: networkType,
       index: 0,
@@ -284,12 +327,12 @@ mixin PaynymWalletInterface {
     required PaymentCode other,
     required int index,
     required bool generateSegwitAddress,
-    bip32.BIP32? mySendBip32Node,
+    coinlib.HDPrivateKey? mySendBip32Node,
   }) async {
     final node = mySendBip32Node ?? await deriveNotificationBip32Node();
 
     final paymentAddress = PaymentAddress(
-      bip32Node: node,
+      bip32Node: await convertNode(node),
       paymentCode: other,
       networkType: networkType,
       index: index,
@@ -373,17 +416,19 @@ mixin PaynymWalletInterface {
   }
 
   // generate bip32 payment code root
-  Future<bip32.BIP32> _getRootNode() async {
-    return _cachedRootNode ??= await Bip32Utils.getBip32Root(
+  Future<coinlib.HDPrivateKey> _getRootNode() async {
+    final seed = bip39.mnemonicToSeed(
       (await _getMnemonicString())!,
-      (await _getMnemonicPassphrase())!,
-      _network,
+      passphrase: (await _getMnemonicPassphrase())!,
+    );
+    return _cachedRootNode ??= coinlib.HDPrivateKey.fromSeed(
+      seed,
     );
   }
 
-  bip32.BIP32? _cachedRootNode;
+  coinlib.HDPrivateKey? _cachedRootNode;
 
-  Future<bip32.BIP32> deriveNotificationBip32Node() async {
+  Future<coinlib.HDPrivateKey> deriveNotificationBip32Node() async {
     final root = await _getRootNode();
     final node = root
         .derivePath(
@@ -402,7 +447,8 @@ mixin PaynymWalletInterface {
     final node = await _getRootNode();
 
     final paymentCode = PaymentCode.fromBip32Node(
-      node.derivePath(_basePaynymDerivePath(testnet: _coin.isTestNet)),
+      await convertNode(
+          node.derivePath(_basePaynymDerivePath(testnet: _coin.isTestNet))),
       networkType: networkType,
       shouldSetSegwitBit: isSegwit,
     );
@@ -412,8 +458,11 @@ mixin PaynymWalletInterface {
 
   Future<Uint8List> signWithNotificationKey(Uint8List data) async {
     final myPrivateKeyNode = await deriveNotificationBip32Node();
-    final pair = btc_dart.ECPair.fromPrivateKey(myPrivateKeyNode.privateKey!,
-        network: _network);
+
+    final pair = bitcoindart.ECPair.fromPrivateKey(
+      myPrivateKeyNode.privateKey.data,
+      network: networkType,
+    );
     final signed = pair.sign(SHA256Digest().process(data));
     return signed;
   }
@@ -454,7 +503,7 @@ mixin PaynymWalletInterface {
   Future<Address> nextUnusedSendAddressFrom({
     required PaymentCode pCode,
     required bool isSegwit,
-    required bip32.BIP32 privateKeyNode,
+    required coinlib.HDPrivateKey privateKeyNode,
     int startIndex = 0,
   }) async {
     // https://en.bitcoin.it/wiki/BIP_0047#Path_levels
@@ -712,7 +761,7 @@ mixin PaynymWalletInterface {
     try {
       final targetPaymentCode = PaymentCode.fromPaymentCode(
         targetPaymentCodeString,
-        networkType: _network,
+        networkType: networkType,
       );
       final myCode = await getPaymentCode(isSegwit: false);
 
@@ -728,7 +777,7 @@ mixin PaynymWalletInterface {
       final myKeyPair = utxoSigningData.first.keyPair!;
 
       final S = SecretPoint(
-        myKeyPair.privateKey!,
+        myKeyPair.privateKey.data,
         targetPaymentCode.notificationPublicKey(),
       );
 
@@ -746,63 +795,87 @@ mixin PaynymWalletInterface {
       ]);
 
       // build a notification tx
-      final txb = btc_dart.TransactionBuilder(network: _network);
-      txb.setVersion(1);
+      final List<coinlib.Input> inputs = [];
+      final List<coinlib.Output> outputs = [];
 
-      txb.addInput(
-        utxo.txid,
-        txPointIndex,
-        null,
-        utxoSigningData.first.output!,
+      inputs.add(
+        coinlib.Input.match(
+          coinlib.RawInput(
+            prevOut: coinlib.OutPoint(
+              coinlib.hexToBytes(utxo.txid),
+              txPointIndex,
+            ),
+            scriptSig: utxoSigningData.first.output!,
+          ),
+        ),
       );
 
       // add rest of possible inputs
       for (var i = 1; i < utxoSigningData.length; i++) {
         final utxo = utxoSigningData[i].utxo;
-        txb.addInput(
-          utxo.txid,
-          utxo.vout,
-          null,
-          utxoSigningData[i].output!,
+
+        inputs.add(
+          coinlib.Input.match(
+            coinlib.RawInput(
+              prevOut: coinlib.OutPoint(
+                coinlib.hexToBytes(utxo.txid),
+                utxo.vout,
+              ),
+              scriptSig: utxoSigningData[i].output!,
+            ),
+          ),
         );
       }
       final String notificationAddress =
           targetPaymentCode.notificationAddressP2PKH();
 
-      txb.addOutput(
-        notificationAddress,
-        overrideAmountForTesting ?? _dustLimitP2PKH,
+      outputs.add(
+        coinlib.Output.fromAddress(
+          BigInt.from(overrideAmountForTesting ?? _dustLimitP2PKH),
+          coinlib.Address.fromString(notificationAddress, _network),
+        ),
       );
-      txb.addOutput(opReturnScript, 0);
+
+      outputs.add(
+        coinlib.Output.fromScriptBytes(
+          BigInt.from(overrideAmountForTesting ?? _dustLimitP2PKH),
+          opReturnScript,
+        ),
+      );
 
       // TODO: add possible change output and mark output as dangerous
       if (change > 0) {
         // generate new change address if current change address has been used
         await _checkChangeAddressForTransactions();
         final String changeAddress = await _getCurrentChangeAddress();
-        txb.addOutput(changeAddress, change);
+
+        outputs.add(
+          coinlib.Output.fromAddress(
+            BigInt.from(change),
+            coinlib.Address.fromString(changeAddress, _network),
+          ),
+        );
       }
 
-      txb.sign(
-        vin: 0,
-        keyPair: myKeyPair,
-        witnessValue: utxo.value,
-        witnessScript: utxoSigningData.first.redeemScript,
+      coinlib.Transaction tx =
+          coinlib.Transaction(version: 1, inputs: inputs, outputs: outputs);
+
+      tx = tx.sign(
+        inputN: 0,
+        key: myKeyPair.privateKey,
+        value: BigInt.from(utxo.value),
       );
 
       // sign rest of possible inputs
       for (var i = 1; i < utxoSigningData.length; i++) {
-        txb.sign(
-          vin: i,
-          keyPair: utxoSigningData[i].keyPair!,
-          witnessValue: utxoSigningData[i].utxo.value,
-          witnessScript: utxoSigningData[i].redeemScript,
+        tx = tx.sign(
+          inputN: i,
+          key: utxoSigningData[i].keyPair!.privateKey,
+          value: BigInt.from(utxoSigningData[i].utxo.value),
         );
       }
 
-      final builtTx = txb.build();
-
-      return Tuple2(builtTx.toHex(), builtTx.virtualSize());
+      return Tuple2(tx.toHex(), tx.size);
     } catch (e, s) {
       Logging.instance.log(
         "_createNotificationTx(): $e\n$s",
@@ -967,7 +1040,7 @@ mixin PaynymWalletInterface {
 
       final myPrivateKey = (await deriveNotificationBip32Node()).privateKey!;
 
-      final S = SecretPoint(myPrivateKey, pubKey);
+      final S = SecretPoint(myPrivateKey.data, pubKey);
 
       final mask = PaymentCode.getMask(S.ecdhSecret(), rev);
 
@@ -979,7 +1052,7 @@ mixin PaynymWalletInterface {
 
       final unBlindedPaymentCode = PaymentCode.fromPayload(
         unBlindedPayload,
-        networkType: _network,
+        networkType: networkType,
       );
 
       return unBlindedPaymentCode;
@@ -1018,7 +1091,7 @@ mixin PaynymWalletInterface {
 
       final myPrivateKey = (await deriveNotificationBip32Node()).privateKey!;
 
-      final S = SecretPoint(myPrivateKey, pubKey);
+      final S = SecretPoint(myPrivateKey.data, pubKey);
 
       final mask = PaymentCode.getMask(S.ecdhSecret(), rev);
 
@@ -1030,7 +1103,7 @@ mixin PaynymWalletInterface {
 
       final unBlindedPaymentCode = PaymentCode.fromPayload(
         unBlindedPayload,
-        networkType: _network,
+        networkType: networkType,
       );
 
       return unBlindedPaymentCode;
@@ -1064,7 +1137,7 @@ mixin PaynymWalletInterface {
           codes.add(
             PaymentCode.fromPaymentCode(
               codeString,
-              networkType: _network,
+              networkType: networkType,
             ),
           );
         }
@@ -1105,7 +1178,8 @@ mixin PaynymWalletInterface {
 
     final List<PaymentCode> codes = [];
     for (final codeString in otherCodeStrings) {
-      codes.add(PaymentCode.fromPaymentCode(codeString, networkType: _network));
+      codes.add(
+          PaymentCode.fromPaymentCode(codeString, networkType: networkType));
     }
 
     for (final tx in sentNotificationTransactions) {
@@ -1143,7 +1217,7 @@ mixin PaynymWalletInterface {
       if (codes.where((e) => e.toString() == codeString).isEmpty) {
         final extraCode = PaymentCode.fromPaymentCode(
           codeString,
-          networkType: _network,
+          networkType: networkType,
         );
         if (extraCode.isValid()) {
           extraCodes.add(extraCode);
@@ -1310,22 +1384,17 @@ mixin PaynymWalletInterface {
         ),
       );
       final paymentCode = PaymentCode.fromBip32Node(
-        node,
-        networkType: _network,
+        await convertNode(node),
+        networkType: networkType,
         shouldSetSegwitBit: false,
       );
 
-      final data = btc_dart.PaymentData(
-        pubkey: paymentCode.notificationPublicKey(),
+      final addr = coinlib.P2PKHAddress.fromPublicKey(
+        coinlib.ECPublicKey.fromHex(paymentCode.notificationPublicKey().toHex),
+        version: _network.p2pkhPrefix,
       );
 
-      final addressString = btc_dart
-          .P2PKH(
-            data: data,
-            network: _network,
-          )
-          .data
-          .address!;
+      final addressString = addr.toString();
 
       Address address = Address(
         walletId: _walletId,

@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:coinlib_flutter/coinlib_flutter.dart';
 import 'package:cw_core/node.dart';
 import 'package:cw_core/unspent_coins_info.dart';
 import 'package:cw_core/wallet_info.dart';
@@ -80,6 +81,7 @@ final openedFromSWBFileStringStateProvider =
 // runs the MyApp widget and checks for new users, caching the value in the
 // miscellaneous box for later use
 void main() async {
+  final coinlibRequiredFutureThatIsOnlyNeededForWebButMustBeCalledAnyways = loadCoinlib();
   WidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
   if (Platform.isIOS) {
@@ -166,6 +168,7 @@ void main() async {
   await Hive.openBox<dynamic>(DB.boxNameDBInfo);
   await Hive.openBox<dynamic>(DB.boxNamePrefs);
   await Prefs.instance.init();
+  await coinlibRequiredFutureThatIsOnlyNeededForWebButMustBeCalledAnyways;
 
   await StackFileSystem.initThemesDir();
 

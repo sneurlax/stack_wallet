@@ -1883,7 +1883,10 @@ class BitcoinCashWallet extends CoinServiceAPI
           validateCashAddr(bchAddress)) {
         bchAddress = bitbox.Address.toLegacyAddress(bchAddress);
       }
-      return AddressUtils.convertToScriptHash(bchAddress, network);
+      return AddressUtils.convertToScriptHash(
+        bchAddress,
+        AddressUtils.convertNetwork(network),
+      );
     } catch (e) {
       rethrow;
     }
@@ -2762,7 +2765,7 @@ class BitcoinCashWallet extends CoinServiceAPI
 
           sd.redeemScript = redeemScript;
           sd.output = data.output;
-          sd.keyPair = keyPair;
+          // sd.keyPair = keyPair;
         }
       }
 
@@ -2813,14 +2816,14 @@ class BitcoinCashWallet extends CoinServiceAPI
       final ec =
           utxoSigningData.firstWhere((e) => e.utxo.txid == utxo.txid).keyPair!;
 
-      final bitboxEC = bitbox.ECPair.fromWIF(ec.toWIF());
-
-      // add a signature to the list to be used later
-      signatures.add({
-        "vin": signatures.length,
-        "key_pair": bitboxEC,
-        "original_amount": utxo.satoshis
-      });
+      // final bitboxEC = bitbox.ECPair.fromWIF(ec.toWIF());
+      //
+      // // add a signature to the list to be used later
+      // signatures.add({
+      //   "vin": signatures.length,
+      //   "key_pair": bitboxEC,
+      //   "original_amount": utxo.satoshis
+      // });
 
       // totalBalance += utxo.satoshis;
     }

@@ -1638,8 +1638,10 @@ class DogecoinWallet extends CoinServiceAPI
         if (batches[batchNumber] == null) {
           batches[batchNumber] = {};
         }
-        final scripthash =
-            AddressUtils.convertToScriptHash(allAddresses[i].value, network);
+        final scripthash = AddressUtils.convertToScriptHash(
+          allAddresses[i].value,
+          AddressUtils.convertNetwork(network),
+        );
         batches[batchNumber]!.addAll({
           scripthash: [scripthash]
         });
@@ -1790,7 +1792,10 @@ class DogecoinWallet extends CoinServiceAPI
   Future<int> getTxCount({required String address}) async {
     String? scripthash;
     try {
-      scripthash = AddressUtils.convertToScriptHash(address, network);
+      scripthash = AddressUtils.convertToScriptHash(
+        address,
+        AddressUtils.convertNetwork(network),
+      );
       final transactions =
           await electrumXClient.getHistory(scripthash: scripthash);
       return transactions.length;
@@ -1809,7 +1814,10 @@ class DogecoinWallet extends CoinServiceAPI
       final Map<String, List<dynamic>> args = {};
       for (final entry in addresses.entries) {
         args[entry.key] = [
-          AddressUtils.convertToScriptHash(entry.value, network)
+          AddressUtils.convertToScriptHash(
+            entry.value,
+            AddressUtils.convertNetwork(network),
+          )
         ];
       }
       final response = await electrumXClient.getBatchHistory(args: args);
@@ -1972,8 +1980,10 @@ class DogecoinWallet extends CoinServiceAPI
         if (batches[batchNumber] == null) {
           batches[batchNumber] = {};
         }
-        final scripthash =
-            AddressUtils.convertToScriptHash(allAddresses[i], network);
+        final scripthash = AddressUtils.convertToScriptHash(
+          allAddresses[i],
+          AddressUtils.convertNetwork(network),
+        );
         final id = Logger.isTestEnv ? "$i" : const Uuid().v1();
         requestIdToAddressMap[id] = allAddresses[i];
         batches[batchNumber]!.addAll({
@@ -2644,7 +2654,7 @@ class DogecoinWallet extends CoinServiceAPI
 
           sd.redeemScript = redeemScript;
           sd.output = data.output;
-          sd.keyPair = keyPair;
+          // sd.keyPair = keyPair;
         }
       }
 
@@ -2690,12 +2700,12 @@ class DogecoinWallet extends CoinServiceAPI
     try {
       // Sign the transaction accordingly
       for (var i = 0; i < utxoSigningData.length; i++) {
-        txb.sign(
-          vin: i,
-          keyPair: utxoSigningData[i].keyPair!,
-          witnessValue: utxoSigningData[i].utxo.value,
-          redeemScript: utxoSigningData[i].redeemScript,
-        );
+        // txb.sign(
+        //   vin: i,
+        //   keyPair: utxoSigningData[i].keyPair!,
+        //   witnessValue: utxoSigningData[i].utxo.value,
+        //   redeemScript: utxoSigningData[i].redeemScript,
+        // );
       }
     } catch (e, s) {
       Logging.instance.log("Caught exception while signing transaction: $e\n$s",

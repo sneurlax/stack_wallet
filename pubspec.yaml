@@ -139,6 +139,7 @@ dependencies:
   nanodart: ^2.0.0
   basic_utils: ^5.5.4
   stellar_flutter_sdk: ^1.6.0
+  coinlib_flutter: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:

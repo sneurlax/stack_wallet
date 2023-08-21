@@ -2891,7 +2891,7 @@ class LitecoinWallet extends CoinServiceAPI
 
           sd.redeemScript = redeemScript;
           sd.output = data.output;
-          sd.keyPair = keyPair;
+          // sd.keyPair = keyPair;
         }
       }
 
@@ -2934,15 +2934,15 @@ class LitecoinWallet extends CoinServiceAPI
 
     try {
       // Sign the transaction accordingly
-      for (var i = 0; i < utxoSigningData.length; i++) {
-        txb.sign(
-          vin: i,
-          keyPair: utxoSigningData[i].keyPair!,
-          witnessValue: utxoSigningData[i].utxo.value,
-          redeemScript: utxoSigningData[i].redeemScript,
-          overridePrefix: _network.bech32!,
-        );
-      }
+      // for (var i = 0; i < utxoSigningData.length; i++) {
+      //   txb.sign(
+      //     vin: i,
+      //     keyPair: utxoSigningData[i].keyPair!,
+      //     witnessValue: utxoSigningData[i].utxo.value,
+      //     redeemScript: utxoSigningData[i].redeemScript,
+      //     overridePrefix: _network.bech32!,
+      //   );
+      // }
     } catch (e, s) {
       Logging.instance.log("Caught exception while signing transaction: $e\n$s",
           level: LogLevel.Error);

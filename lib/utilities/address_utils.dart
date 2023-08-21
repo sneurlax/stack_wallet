@@ -9,9 +9,11 @@
  */
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:bitbox/bitbox.dart' as bitbox;
-import 'package:bitcoindart/bitcoindart.dart';
+import 'package:bitcoindart/bitcoindart.dart' as bitcoindart;
+import 'package:coinlib_flutter/coinlib_flutter.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_libepiccash/epic_cash.dart';
 import 'package:nanodart/nanodart.dart';
@@ -29,40 +31,56 @@ class AddressUtils {
     return '${address.substring(0, 5)}...${address.substring(address.length - 5)}';
   }
 
+  static NetworkParams convertNetwork(bitcoindart.NetworkType network) {
+    return NetworkParams(
+      wifPrefix: network.wif,
+      p2pkhPrefix: network.pubKeyHash,
+      p2shPrefix: network.scriptHash,
+      privHDPrefix: network.bip32.private,
+      pubHDPrefix: network.bip32.public,
+      bech32Hrp: network.bech32 ?? "unknown",
+      messagePrefix: network.messagePrefix,
+    );
+  }
+
   /// attempts to convert a string to a valid scripthash
   ///
   /// Returns the scripthash or throws an exception on invalid firo address
   static String convertToScriptHash(
     String address,
-    NetworkType network, [
+    NetworkParams network, [
     String overridePrefix = "",
   ]) {
     try {
-      final output =
-          Address.addressToOutputScript(address, network, overridePrefix);
-      final hash = sha256.convert(output.toList(growable: false)).toString();
-
-      final chars = hash.split("");
-      final reversedPairs = <String>[];
-      // TODO find a better/faster way to do this?
-      var i = chars.length - 1;
-      while (i > 0) {
-        reversedPairs.add(chars[i - 1]);
-        reversedPairs.add(chars[i]);
-        i -= 2;
-      }
-      return reversedPairs.join("");
+      final addr = Address.fromString(address, network);
+      return convertBytesToScriptHash(addr.program.script.compiled);
     } catch (e) {
       rethrow;
     }
   }
 
+  static String convertBytesToScriptHash(Uint8List bytes) {
+    final hash = sha256.convert(bytes.toList(growable: false)).toString();
+
+    final chars = hash.split("");
+    final List<String> reversedPairs = [];
+    // TODO find a better/faster way to do this?
+    int i = chars.length - 1;
+    while (i > 0) {
+      reversedPairs.add(chars[i - 1]);
+      reversedPairs.add(chars[i]);
+      i -= 2;
+    }
+    return reversedPairs.join("");
+  }
+
   static bool validateAddress(String address, Coin coin) {
     switch (coin) {
       case Coin.bitcoin:
-        return Address.validateAddress(address, bitcoin);
+        return bitcoindart.Address.validateAddress(
+            address, bitcoindart.bitcoin);
       case Coin.litecoin:
-        return Address.validateAddress(address, litecoin);
+        return bitcoindart.Address.validateAddress(address, litecoin);
       case Coin.bitcoincash:
         try {
           // 0 for bitcoincash: address scheme, 1 for legacy address
@@ -86,15 +104,15 @@ class AddressUtils {
           return false;
         }
       case Coin.dogecoin:
-        return Address.validateAddress(address, dogecoin);
+        return bitcoindart.Address.validateAddress(address, dogecoin);
       case Coin.epicCash:
         return validateSendAddress(address) == "1";
       case Coin.ethereum:
         return true; //TODO - validate ETH address
       case Coin.firo:
-        return Address.validateAddress(address, firoNetwork);
+        return bitcoindart.Address.validateAddress(address, firoNetwork);
       case Coin.eCash:
-        return Address.validateAddress(address, eCashNetwork);
+        return bitcoindart.Address.validateAddress(address, eCashNetwork);
       case Coin.monero:
         return RegExp("[a-zA-Z0-9]{95}").hasMatch(address) ||
             RegExp("[a-zA-Z0-9]{106}").hasMatch(address);
@@ -102,9 +120,10 @@ class AddressUtils {
         return RegExp("[a-zA-Z0-9]{95}").hasMatch(address) ||
             RegExp("[a-zA-Z0-9]{106}").hasMatch(address);
       case Coin.namecoin:
-        return Address.validateAddress(address, namecoin, namecoin.bech32!);
+        return bitcoindart.Address.validateAddress(
+            address, namecoin, namecoin.bech32!);
       case Coin.particl:
-        return Address.validateAddress(address, particl);
+        return bitcoindart.Address.validateAddress(address, particl);
       case Coin.stellar:
         return RegExp(r"^[G][A-Z0-9]{55}$").hasMatch(address);
       case Coin.nano:
@@ -112,9 +131,10 @@ class AddressUtils {
       case Coin.banano:
         return NanoAccounts.isValid(NanoAccountType.BANANO, address);
       case Coin.bitcoinTestNet:
-        return Address.validateAddress(address, testnet);
+        return bitcoindart.Address.validateAddress(
+            address, bitcoindart.testnet);
       case Coin.litecoinTestNet:
-        return Address.validateAddress(address, litecointestnet);
+        return bitcoindart.Address.validateAddress(address, litecointestnet);
       case Coin.bitcoincashTestnet:
         try {
           // 0 for bitcoincash: address scheme, 1 for legacy address
@@ -138,9 +158,9 @@ class AddressUtils {
           return false;
         }
       case Coin.firoTestNet:
-        return Address.validateAddress(address, firoTestNetwork);
+        return bitcoindart.Address.validateAddress(address, firoTestNetwork);
       case Coin.dogecoinTestNet:
-        return Address.validateAddress(address, dogecointestnet);
+        return bitcoindart.Address.validateAddress(address, dogecointestnet);
       case Coin.stellarTestnet:
         return RegExp(r"^[G][A-Z0-9]{55}$").hasMatch(address);
     }

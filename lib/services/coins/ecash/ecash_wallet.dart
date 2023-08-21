@@ -18,6 +18,7 @@ import 'package:bip39/bip39.dart' as bip39;
 import 'package:bitbox/bitbox.dart' as bitbox;
 import 'package:bitcoindart/bitcoindart.dart';
 import 'package:bs58check/bs58check.dart' as bs58check;
+import 'package:coinlib_flutter/coinlib_flutter.dart' as coinlib;
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
@@ -757,9 +758,15 @@ class ECashWallet extends CoinServiceAPI
               bitbox.Address.formatCashAddr &&
           validateCashAddr(address)) {
         final addressLegacy = bitbox.Address.toLegacyAddress(address);
-        return AddressUtils.convertToScriptHash(addressLegacy, network);
+        return AddressUtils.convertToScriptHash(
+          addressLegacy,
+          AddressUtils.convertNetwork(network),
+        );
       }
-      return AddressUtils.convertToScriptHash(address, network);
+      return AddressUtils.convertToScriptHash(
+        address,
+        AddressUtils.convertNetwork(network),
+      );
     } catch (e) {
       rethrow;
     }
@@ -1899,7 +1906,7 @@ class ECashWallet extends CoinServiceAPI
 
         sd.redeemScript = redeemScript;
         sd.output = data.output;
-        sd.keyPair = keyPair;
+        sd.keyPair = coinlib.HDPrivateKey.decode(node.toWIF(), _network.wif);
       }
 
       return signingData;
@@ -1949,7 +1956,7 @@ class ECashWallet extends CoinServiceAPI
       final ec =
           utxoSigningData.firstWhere((e) => e.utxo.txid == utxo.txid).keyPair!;
 
-      final bitboxEC = bitbox.ECPair.fromWIF(ec.toWIF());
+      final bitboxEC = bitbox.ECPair.fromWIF(ec.encode(_network.wif));
 
       // add a signature to the list to be used later
       signatures.add({

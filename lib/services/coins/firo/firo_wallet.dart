@@ -1781,7 +1781,7 @@ class FiroWallet extends CoinServiceAPI
 
           sd.redeemScript = redeemScript;
           sd.output = data.output;
-          sd.keyPair = keyPair;
+          // sd.keyPair = keyPair;
         } else {
           throw Exception("key or wif not found for ${sd.utxo}");
         }
@@ -1826,12 +1826,12 @@ class FiroWallet extends CoinServiceAPI
     try {
       // Sign the transaction accordingly
       for (var i = 0; i < utxoSigningData.length; i++) {
-        txb.sign(
-          vin: i,
-          keyPair: utxoSigningData[i].keyPair!,
-          witnessValue: utxoSigningData[i].utxo.value,
-          redeemScript: utxoSigningData[i].redeemScript,
-        );
+        // txb.sign(
+        //   vin: i,
+        //   keyPair: utxoSigningData[i].keyPair!,
+        //   witnessValue: utxoSigningData[i].utxo.value,
+        //   redeemScript: utxoSigningData[i].redeemScript,
+        // );
       }
     } catch (e, s) {
       Logging.instance.log("Caught exception while signing transaction: $e\n$s",
@@ -3145,7 +3145,10 @@ class FiroWallet extends CoinServiceAPI
 
   Future<int> _getTxCount({required String address}) async {
     try {
-      final scriptHash = AddressUtils.convertToScriptHash(address, _network);
+      final scriptHash = AddressUtils.convertToScriptHash(
+        address,
+        AddressUtils.convertNetwork(_network),
+      );
       final transactions = await electrumXClient.getHistory(
         scripthash: scriptHash,
       );
@@ -3280,8 +3283,10 @@ class FiroWallet extends CoinServiceAPI
         if (batches[batchNumber] == null) {
           batches[batchNumber] = {};
         }
-        final scripthash =
-            AddressUtils.convertToScriptHash(allAddresses[i], _network);
+        final scripthash = AddressUtils.convertToScriptHash(
+          allAddresses[i],
+          AddressUtils.convertNetwork(_network),
+        );
         final id = Logger.isTestEnv ? "$i" : const Uuid().v1();
         requestIdToAddressMap[id] = allAddresses[i];
         batches[batchNumber]!.addAll({
@@ -3888,8 +3893,10 @@ class FiroWallet extends CoinServiceAPI
         if (batches[batchNumber] == null) {
           batches[batchNumber] = {};
         }
-        final scripthash =
-            AddressUtils.convertToScriptHash(allAddresses[i].value, _network);
+        final scripthash = AddressUtils.convertToScriptHash(
+          allAddresses[i].value,
+          AddressUtils.convertNetwork(_network),
+        );
         batches[batchNumber]!.addAll({
           scripthash: [scripthash]
         });
@@ -4245,7 +4252,10 @@ class FiroWallet extends CoinServiceAPI
       final Map<String, List<dynamic>> args = {};
       for (final entry in addresses.entries) {
         args[entry.key] = [
-          AddressUtils.convertToScriptHash(entry.value, _network)
+          AddressUtils.convertToScriptHash(
+            entry.value,
+            AddressUtils.convertNetwork(_network),
+          )
         ];
       }
       final response = await electrumXClient.getBatchHistory(args: args);
