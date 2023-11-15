@@ -230,8 +230,12 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
       }
 
       // TODO: do actual check to make sure it is a valid mnemonic for monero
+      // and firo.
       if (bip39.validateMnemonic(mnemonic) == false &&
-          !(widget.coin == Coin.monero || widget.coin == Coin.wownero)) {
+          !(widget.coin == Coin.monero ||
+              widget.coin == Coin.wownero ||
+              widget.coin == Coin.firo ||
+              widget.coin == Coin.firoTestNet)) {
         unawaited(showFloatingFlushBar(
           type: FlushBarType.warning,
           message: "Invalid seed phrase!",
