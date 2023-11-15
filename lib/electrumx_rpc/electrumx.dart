@@ -874,6 +874,17 @@ class ElectrumX {
   /// Demo use of spark.getsparkanonymityset.
   ///
   /// Returns the whole Spark anonymity set for denomination in the groupId.
+  ///
+  /// ex:
+  /// {
+  ///   "jsonrpc": "2.0",
+  ///   "result": {
+  ///     "blockHash": "rRj8tr4G+XXATonjWj7KHgwwdB/HpCZ5JrR3aY7DQ4A=",
+  ///     "setHash": "2JgLOpHmXbVlLzCoAC6P0TqjOJKm1CTZZcmSYxE6QV4=",
+  ///     "coins": []
+  ///   },
+  ///   "id": "0"
+  /// }
   Future<Map<String, dynamic>> getSparkAnonymitySet({
     String groupId = "1",
     String blockhash = "",
@@ -901,6 +912,15 @@ class ElectrumX {
   /// Demo use of spark.getusedcoinstags.
   ///
   /// Returns the whole set of the used Spark coin tags.
+  ///
+  /// ex:
+  /// {
+  ///   "jsonrpc": "2.0",
+  ///   "result": {
+  ///     "tags": ["3j/uxAJEIyGvY7uSh5/saOQTedPgTGt7ECnpAzYqJAUBAA==", ... ]
+  ///   },
+  ///   "id": "0"
+  /// }
   Future<Map<String, dynamic>> getUsedCoinsTags({
     String? requestID,
     required int startNumber,
