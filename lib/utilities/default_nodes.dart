@@ -240,8 +240,10 @@ abstract class DefaultNodes {
       );
 
   static NodeModel get firoTestnet => NodeModel(
-        host: "firo-testnet.stackwallet.com",
-        port: 50002,
+        // host: "firo-testnet.stackwallet.com", // Lelantus testnet.
+        // port: 50002,
+        host: "95.179.164.13", // Spark testnet.
+        port: 51002,
         name: defaultName,
         id: _nodeId(Coin.firoTestNet),
         useSSL: true,
