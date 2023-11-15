@@ -751,7 +751,7 @@ class ElectrumX {
     }
   }
 
-  /// Returns the whole anonymity set for denomination in the groupId.
+  /// Returns the whole Lelantus anonymity set for denomination in the groupId.
   ///
   /// ex:
   ///  {
@@ -792,7 +792,7 @@ class ElectrumX {
   //TODO add example to docs
   ///
   ///
-  /// Returns the block height and groupId of pubcoin.
+  /// Returns the block height and groupId of a Lelantus pubcoin.
   Future<dynamic> getMintData({dynamic mints, String? requestID}) async {
     try {
       final response = await request(
@@ -809,7 +809,7 @@ class ElectrumX {
   }
 
   //TODO add example to docs
-  /// Returns the whole set of the used coin serials.
+  /// Returns the whole set of the used Lelantus coin serials.
   Future<Map<String, dynamic>> getUsedCoinSerials({
     String? requestID,
     required int startNumber,
@@ -830,7 +830,7 @@ class ElectrumX {
     }
   }
 
-  /// Returns the latest set id
+  /// Returns the latest Lelantus set id
   ///
   /// ex: 1
   Future<int> getLatestCoinId({String? requestID}) async {
@@ -863,6 +863,63 @@ class ElectrumX {
   //     throw e;
   //   }
   // }
+
+  // New Spark ElectrumX methods:
+  // > Functions provided by ElectrumX servers
+  // > getsparkanonymityset gets coinGroupId and startBlockHash, if the last is empty it returns full set, otherwise returns mint after that block, we need to call this to keep our anonymity set data up to date, returns blockHash (last block hash), setHash (hash of current set) and mints (the list of pairs serialized coin and tx hash)
+  // > getsparkmintmetadata  gets the list of coin hashes and gives set id and block height for each coin
+  // > getusedcoinstags gets start number, if it is 0, we get the full set, otherwise the used tags after that number
+  // > getsparklatestcoinid returns last coin id
+
+  /// Demo use of spark.getsparkanonymityset.
+  ///
+  /// Returns the whole Spark anonymity set for denomination in the groupId.
+  Future<Map<String, dynamic>> getSparkAnonymitySet({
+    String groupId = "1",
+    String blockhash = "",
+    String? requestID,
+  }) async {
+    try {
+      Logging.instance.log("attempting to fetch spark.getsparkanonymityset...",
+          level: LogLevel.Info);
+      final response = await request(
+        requestID: requestID,
+        command: 'spark.getsparkanonymityset',
+        args: [
+          groupId,
+          blockhash,
+        ],
+      );
+      Logging.instance.log("Fetching spark.getsparkanonymityset finished",
+          level: LogLevel.Info);
+      return Map<String, dynamic>.from(response["result"] as Map);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Demo use of spark.getusedcoinstags.
+  ///
+  /// Returns the whole set of the used Spark coin tags.
+  Future<Map<String, dynamic>> getUsedCoinsTags({
+    String? requestID,
+    required int startNumber,
+  }) async {
+    try {
+      final response = await request(
+        requestID: requestID,
+        command: 'spark.getusedcoinstags',
+        args: [
+          "$startNumber",
+        ],
+        requestTimeout: const Duration(minutes: 2),
+      );
+      return Map<String, dynamic>.from(response["result"] as Map);
+    } catch (e) {
+      Logging.instance.log(e, level: LogLevel.Error);
+      rethrow;
+    }
+  }
 
   /// Get the current fee rate.
   ///

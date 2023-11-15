@@ -556,6 +556,65 @@ class HiddenSettings extends StatelessWidget {
                         //     ),
                         //   ),
                         // ),
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Consumer(
+                          builder: (_, ref, __) {
+                            return GestureDetector(
+                              onTap: () async {
+                                try {
+                                  // Spark ElectrumX tests.
+
+                                  final n = ref
+                                      .read(nodeServiceChangeNotifierProvider)
+                                      .getPrimaryNodeFor(
+                                          coin: Coin.firoTestNet)!;
+
+                                  final e = ElectrumX.from(
+                                    node: ElectrumXNode(
+                                      address: n.host,
+                                      port: n.port,
+                                      name: n.name,
+                                      id: n.id,
+                                      useSSL: n.useSSL,
+                                    ),
+                                    prefs:
+                                        ref.read(prefsChangeNotifierProvider),
+                                    failovers: [],
+                                  );
+
+                                  // Call and print getSparkAnonymitySet.
+                                  var anonymitySet =
+                                      await e.getSparkAnonymitySet(
+                                    groupId: "1",
+                                    blockhash: "",
+                                  );
+
+                                  print("anonymitySet: $anonymitySet");
+
+                                  // Call and print getUsedCoinsTags.
+                                  var usedCoinsTags =
+                                      await e.getUsedCoinsTags(startNumber: 0);
+
+                                  print(
+                                      "usedCoinsTags['tags'].length: ${usedCoinsTags["tags"].length}");
+                                } catch (e, s) {
+                                  print("$e\n$s");
+                                }
+                              },
+                              child: RoundedWhiteContainer(
+                                child: Text(
+                                  "Spark ElectrumX tests",
+                                  style: STextStyles.button(context).copyWith(
+                                      color: Theme.of(context)
+                                          .extension<StackColors>()!
+                                          .accentColorDark),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
