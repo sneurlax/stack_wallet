@@ -46,6 +46,9 @@ final kFusionServerInfoDefaults = Map<Coin, FusionInfo>.unmodifiable(const {
     port: 8788,
     ssl: true,
     rounds: 0, // 0 is continuous
+    // host: "ecashfusion.stackwallet.com",
+    // port: 9797,
+    // ssl: false,
   ),
 });
 
