@@ -63,10 +63,11 @@ class _CashFusionViewState extends ConsumerState<CashFusionView> {
   FusionOption _option = FusionOption.continuous;
 
   Future<void> _startFusion() async {
-    final fusionWallet = ref
+    final wallet = ref
         .read(walletsChangeNotifierProvider)
         .getManager(widget.walletId)
-        .wallet as FusionWalletInterface;
+        .wallet;
+    final fusionWallet = wallet as FusionWalletInterface;
 
     try {
       fusionWallet.uiState = ref.read(
@@ -91,7 +92,9 @@ class _CashFusionViewState extends ConsumerState<CashFusionView> {
     );
 
     // update user prefs (persistent)
-    ref.read(prefsChangeNotifierProvider).setFusionServerInfo(coin, newInfo);
+    ref
+        .read(prefsChangeNotifierProvider)
+        .setFusionServerInfo(wallet.coin, newInfo);
 
     unawaited(
       fusionWallet.fuse(
@@ -224,7 +227,11 @@ class _CashFusionViewState extends ConsumerState<CashFusionView> {
                               CustomTextButton(
                                 text: "Default",
                                 onTap: () {
-                                  final def = kFusionServerInfoDefaults[coin]!;
+                                  final def = kFusionServerInfoDefaults[ref
+                                      .read(walletsChangeNotifierProvider)
+                                      .getManager(widget.walletId)
+                                      .wallet
+                                      .coin]!;
                                   serverController.text = def.host;
                                   portController.text = def.port.toString();
                                   fusionRoundController.text =

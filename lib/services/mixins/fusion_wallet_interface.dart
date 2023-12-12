@@ -647,14 +647,25 @@ mixin FusionWalletInterface {
         // Loop through UTXOs, checking and adding valid ones.
         for (final utxo in walletUtxos) {
           final String addressString = utxo.address!;
-          final List<String> possibleAddresses = [addressString];
+          final Set<String> possibleAddresses = {};
 
           if (bitbox.Address.detectFormat(addressString) ==
               bitbox.Address.formatCashAddr) {
-            possibleAddresses
-                .add(bitbox.Address.toLegacyAddress(addressString));
+            possibleAddresses.add(addressString);
+            possibleAddresses.add(
+              bitbox.Address.toLegacyAddress(addressString),
+            );
           } else {
-            possibleAddresses.add(bitbox.Address.toCashAddress(addressString));
+            possibleAddresses.add(addressString);
+            if (_coin == Coin.eCash) {
+              possibleAddresses.add(
+                  bitbox.Address.toECashAddress(addressString),
+              );
+            } else {
+              possibleAddresses.add(
+                bitbox.Address.toCashAddress(addressString),
+              );
+            }
           }
 
           // Fetch address to get pubkey
@@ -662,13 +673,13 @@ mixin FusionWalletInterface {
               .getAddresses(_walletId)
               .filter()
               .anyOf<String,
-                      QueryBuilder<Address, Address, QAfterFilterCondition>>(
-                  possibleAddresses, (q, e) => q.valueEqualTo(e))
+              QueryBuilder<Address, Address, QAfterFilterCondition>>(
+              possibleAddresses, (q, e) => q.valueEqualTo(e))
               .and()
               .group((q) => q
-                  .subTypeEqualTo(AddressSubType.change)
-                  .or()
-                  .subTypeEqualTo(AddressSubType.receiving))
+              .subTypeEqualTo(AddressSubType.change)
+              .or()
+              .subTypeEqualTo(AddressSubType.receiving))
               .and()
               .typeEqualTo(AddressType.p2pkh)
               .findFirst();
@@ -741,7 +752,7 @@ mixin FusionWalletInterface {
             _uiState?.setFailed(true, shouldNotify: true);
           }
 
-          // If we fail too many times in a row or have no coins, stop trying.
+          // If we fail too many times in a row, stop trying.
           if (_failedFuseCount >= maxFailedFuseCount) {
             _updateStatus(
                 status: fusion.FusionStatus.failed,

@@ -95,6 +95,7 @@ class _DesktopCashFusion extends ConsumerState<DesktopCashFusionView> {
     );
 
     // update user prefs (persistent)
+    ref.read(prefsChangeNotifierProvider).setFusionServerInfo(coin, newInfo);
 
     ref.read(prefsChangeNotifierProvider).setFusionServerInfo(coin, newInfo);
 
@@ -124,6 +125,11 @@ class _DesktopCashFusion extends ConsumerState<DesktopCashFusionView> {
     serverFocusNode = FocusNode();
     portFocusNode = FocusNode();
     fusionRoundFocusNode = FocusNode();
+    coin = ref
+        .read(walletsChangeNotifierProvider)
+        .getManager(widget.walletId)
+        .wallet
+        .coin;
 
     coin = ref
         .read(walletsChangeNotifierProvider)

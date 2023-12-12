@@ -296,13 +296,14 @@ class _FusionDialogViewState extends ConsumerState<FusionDialogView> {
 
   /// Fuse again.
   void _fuseAgain() async {
-    final fusionWallet = ref
+    final wallet = ref
         .read(walletsChangeNotifierProvider)
         .getManager(widget.walletId)
-        .wallet as FusionWalletInterface;
+        .wallet;
+    final fusionWallet = wallet as FusionWalletInterface;
 
     final fusionInfo =
-        ref.read(prefsChangeNotifierProvider).getFusionServerInfo(coin);
+        ref.read(prefsChangeNotifierProvider).getFusionServerInfo(wallet.coin);
 
     try {
       fusionWallet.uiState = ref.read(
