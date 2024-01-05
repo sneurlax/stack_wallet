@@ -21,7 +21,7 @@ abstract class StackFileSystem {
     Directory appDirectory;
 
     // if this is changed, the directories in libmonero must also be changed!!!!!
-    const dirName = "stackwallet";
+    const dirName = "stackwalletFiroSparkBeta";
 
     // todo: can merge and do same as regular linux home dir?
     if (Logging.isArmLinux) {
