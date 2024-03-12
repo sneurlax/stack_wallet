@@ -199,7 +199,7 @@ class AppNameText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      "Stack Wallet",
+      "Stack Duo",
       textAlign: TextAlign.center,
       style: !isDesktop
           ? STextStyles.pageTitleH1(context)

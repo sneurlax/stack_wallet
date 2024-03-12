@@ -16,7 +16,7 @@ abstract class FeaturedPaynyms {
       "PM8TJdQcNk27JpxGRtNR7Hnh8VkJk4Nf17BthLx89fM3iX3UL2YshyaiTAvKgTCVvpgsAgY1DbojkAaUd3Rcn48NEn4uUBuqkaSddgKL8TPAAEQXNuE6";
 
   static Map<String, String> get featured => {
-        "Stack Wallet": stackWallet,
+        "Stack Duo": stackWallet,
         // "Samourai Wallet Dev Fund": samouraiWalletDevFund,
       };
 }

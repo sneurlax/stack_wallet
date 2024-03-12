@@ -165,7 +165,7 @@ class DesktopAboutView extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               Text(
-                                "Stack Wallet",
+                                "Stack Duo",
                                 style: STextStyles.desktopH3(context),
                                 textAlign: TextAlign.start,
                               ),

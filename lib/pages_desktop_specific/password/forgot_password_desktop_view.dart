@@ -73,7 +73,7 @@ class _ForgotPasswordDesktopViewState
                   height: 42,
                 ),
                 Text(
-                  "Stack Wallet",
+                  "Stack Duo",
                   style: STextStyles.desktopH1(context),
                 ),
                 const SizedBox(
