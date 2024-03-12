@@ -209,7 +209,7 @@ class _DesktopLoginViewState extends ConsumerState<DesktopLoginView> {
                 SizedBox(
                   width: 350,
                   child: Text(
-                    "Open source multicoin wallet for everyone",
+                    "Open source Bitcoin and Monero for everyone",
                     textAlign: TextAlign.center,
                     style: STextStyles.desktopSubtitleH1(context),
                   ),
