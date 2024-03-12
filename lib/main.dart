@@ -102,7 +102,7 @@ void main(List<String> args) async {
   }
 
   if (Util.isDesktop && !Platform.isIOS) {
-    setWindowTitle('Stack Wallet');
+    setWindowTitle('Stack Duo');
     setWindowMinSize(const Size(1220, 100));
     setWindowMaxSize(Size.infinite);
 
@@ -617,7 +617,7 @@ class _MaterialAppWithThemeState extends ConsumerState<MaterialAppWithTheme>
     return MaterialApp(
       key: GlobalKey(),
       navigatorKey: navigatorKey,
-      title: 'Stack Wallet',
+      title: 'Stack Duo',
       onGenerateRoute: RouteGenerator.generateRoute,
       theme: ThemeData(
         extensions: [colorScheme],
