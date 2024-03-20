@@ -8,6 +8,8 @@
  *
  */
 
+import 'dart:async';
+
 import 'package:flutter_libmonero/monero/monero.dart';
 import 'package:flutter_libmonero/wownero/wownero.dart';
 import 'package:isar/isar.dart';
@@ -188,28 +190,31 @@ class Wallets {
           final txTracker =
               TransactionNotificationTracker(walletId: walletInfo.walletId);
 
-          final wallet = await Wallet.load(
-            walletId: walletInfo.walletId,
-            mainDB: mainDB,
-            secureStorageInterface: nodeService.secureStorageInterface,
-            nodeService: nodeService,
-            prefs: prefs,
-          );
+          // TODO [prio=high]: This breaks various UI elements.
+          unawaited(Future(() async {
+            final wallet = await Wallet.load(
+              walletId: walletInfo.walletId,
+              mainDB: mainDB,
+              secureStorageInterface: nodeService.secureStorageInterface,
+              nodeService: nodeService,
+              prefs: prefs,
+            );
 
-          final shouldSetAutoSync = shouldAutoSyncAll ||
-              walletIdsToEnableAutoSync.contains(walletInfo.walletId);
+            final shouldSetAutoSync = shouldAutoSyncAll ||
+                walletIdsToEnableAutoSync.contains(walletInfo.walletId);
 
-          if (wallet is CwBasedInterface) {
-            // walletsToInitLinearly.add(Tuple2(manager, shouldSetAutoSync));
-          } else {
-            walletInitFutures.add(wallet.init().then((_) {
-              if (shouldSetAutoSync) {
-                wallet.shouldAutoSync = true;
-              }
-            }));
-          }
+            if (wallet is CwBasedInterface) {
+              // walletsToInitLinearly.add(Tuple2(manager, shouldSetAutoSync));
+            } else {
+              walletInitFutures.add(wallet.init().then((_) {
+                if (shouldSetAutoSync) {
+                  wallet.shouldAutoSync = true;
+                }
+              }));
+            }
 
-          _wallets[wallet.walletId] = wallet;
+            _wallets[wallet.walletId] = wallet;
+          }));
         } else {
           // wallet creation was not completed by user so we remove it completely
           await _deleteWallet(walletInfo.walletId);
