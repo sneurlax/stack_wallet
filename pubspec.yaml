@@ -180,7 +180,7 @@ dependencies:
   solana:
     git: # TODO: Revert to official package once Tor support is merged upstream.
       url: https://github.com/cypherstack/espresso-cash-public.git
-      ref: 2d7189d31f1bfd5d6779268c81a897f03f339f5d # tor branch.
+      ref: 7f66ca2b223978b49754cfbd2c1414c2ee6a8db4 # tor branch.
       path: packages/solana
 
 dev_dependencies:

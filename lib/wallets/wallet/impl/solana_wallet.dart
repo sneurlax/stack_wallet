@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:isar/isar.dart';
+import 'package:socks5_proxy/socks.dart' as socks;
 import 'package:solana/dto.dart';
 import 'package:solana/solana.dart';
+import 'package:solana/src/rpc/json_rpc_client.dart';
+import 'package:solana/src/rpc/json_rpc_request.dart';
 import 'package:stackwallet/models/balance.dart';
 import 'package:stackwallet/models/isar/models/blockchain_data/transaction.dart'
     as isar;
@@ -208,17 +214,17 @@ class SolanaWallet extends Bip39Wallet<Solana> {
   }
 
   @override
-  Future<bool> pingCheck() {
+  Future<bool> pingCheck() async {
     try {
-      _checkClient();
-      rpcClient?.getHealth();
-      return Future.value(true);
+      await _checkClient();
+      String result = await rpcClient!.getHealth();
+      return true;
     } catch (e, s) {
       Logging.instance.log(
         "$runtimeType Solana pingCheck failed: $e\n$s",
         level: LogLevel.Error,
       );
-      return Future.value(false);
+      return false;
     }
   }
 
@@ -253,7 +259,8 @@ class SolanaWallet extends Bip39Wallet<Solana> {
     try {
       await _checkClient();
 
-      var balance = await rpcClient?.getBalance(info.cachedReceivingAddress);
+      var balance = await rpcClient?.getBalance(info.cachedReceivingAddress)
+          as BalanceResult;
 
       // Rent exemption of Solana
       final accInfo =
@@ -299,17 +306,15 @@ class SolanaWallet extends Bip39Wallet<Solana> {
     try {
       await _checkClient();
 
-      int blockHeight = await rpcClient?.getSlot() ?? 0;
-      // TODO [prio=low]: Revisit null condition.
+      dynamic blockHeight = await rpcClient?.getSlot();
 
       await info.updateCachedChainHeight(
-        newHeight: blockHeight,
+        newHeight: blockHeight as int,
         isar: mainDB.isar,
       );
     } catch (e, s) {
       Logging.instance.log(
-        "Error occurred in solana_wallet.dart while getting"
-        " chain height for solana: $e\n$s",
+        "Error occurred in solana_wallet.dart while getting chain height for solana: $e\n$s",
         level: LogLevel.Error,
       );
     }
@@ -336,7 +341,7 @@ class SolanaWallet extends Bip39Wallet<Solana> {
 
       var transactionsList = await rpcClient?.getTransactionsList(
           (await _getKeyPair()).publicKey,
-          encoding: Encoding.jsonParsed);
+          encoding: Encoding.jsonParsed) as Iterable<TransactionDetails>;
       var txsList =
           List<Tuple2<isar.Transaction, Address>>.empty(growable: true);
 
@@ -417,15 +422,91 @@ class SolanaWallet extends Bip39Wallet<Solana> {
   /// TODO: Make synchronous.
   Future<void> _checkClient() async {
     if (prefs.useTor) {
-      final ({InternetAddress host, int port}) proxyInfo =
-          TorService.sharedInstance.getProxyInfo();
       // If Tor is enabled, pass the optional proxyInfo to the Solana RpcClient.
-      rpcClient = RpcClient("${getCurrentNode().host}:${getCurrentNode().port}",
-          proxyInfo: {'host': proxyInfo.host.address, 'port': proxyInfo.port});
+      var jsonRpcClient = TorJsonRpcClient(
+        getCurrentNode().host,
+        proxyInfo: TorService.sharedInstance.getProxyInfo(),
+      );
+
+      rpcClient = RpcClient.withCustomClient(jsonRpcClient);
     } else {
       rpcClient ??=
           RpcClient("${getCurrentNode().host}:${getCurrentNode().port}");
     }
     return;
+  }
+}
+
+/// A JsonRpcClient extension that sends requests via Tor.
+class TorJsonRpcClient extends JsonRpcClient {
+  final ({InternetAddress host, int port}) proxyInfo;
+
+  TorJsonRpcClient(
+    String url, {
+    Duration timeout = const Duration(seconds: 30),
+    Map<String, String> headers = const {},
+    required this.proxyInfo,
+  }) : super(url, timeout: timeout, customHeaders: headers);
+
+  @override
+  Future<JsonRpcResponse> postRequest(JsonRpcRequest request) async {
+    final Uri uri = Uri.parse(url);
+    final HttpClient httpClient = HttpClient();
+
+    try {
+      // Configure the proxy.
+      socks.SocksTCPClient.assignToHttpClient(httpClient, [
+        socks.ProxySettings(
+          proxyInfo.host,
+          proxyInfo.port,
+        ),
+      ]);
+
+      final HttpClientRequest httpClientRequest = await httpClient.postUrl(uri);
+      headers
+          .forEach((key, value) => httpClientRequest.headers.set(key, value));
+      httpClientRequest.write(json.encode(request.toJson()));
+
+      final HttpClientResponse response =
+          await httpClientRequest.close().timeout(
+        timeout,
+        onTimeout: () {
+          throw RpcTimeoutException(
+            method: request.method,
+            body: json.encode(request.toJson()),
+            timeout: timeout,
+          );
+        },
+      );
+
+      // Consolidate the bytes and parse the response.
+      final Uint8List bodyBytes =
+          await consolidateHttpClientResponseBytes(response);
+      final String responseBody = utf8.decode(bodyBytes);
+      final int statusCode = response.statusCode;
+
+      if (statusCode == 200) {
+        return JsonRpcResponse.parse(json.decode(responseBody));
+      }
+
+      throw HttpException(statusCode, responseBody);
+    } finally {
+      httpClient.close();
+    }
+  }
+
+  Future<Uint8List> consolidateHttpClientResponseBytes(
+      HttpClientResponse response) {
+    Completer<Uint8List> completer = Completer<Uint8List>();
+    List<int> bytes = [];
+    response.listen(
+      (List<int> data) {
+        bytes.addAll(data);
+      },
+      onDone: () => completer.complete(Uint8List.fromList(bytes)),
+      onError: completer.completeError,
+      cancelOnError: true,
+    );
+    return completer.future;
   }
 }
