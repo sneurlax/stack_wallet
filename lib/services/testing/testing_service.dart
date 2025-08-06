@@ -31,6 +31,8 @@ import 'test_suites/epiccash_test_suite.dart';
 import 'test_suites/firo_test_suite.dart';
 import 'test_suites/litecoin_mweb_test_suite.dart';
 import 'test_suites/tor_test_suite.dart';
+import 'test_suites/bitcoin_test_suite.dart';
+import 'test_suites/bitcoincash_test_suite.dart';
 
 final testingServiceProvider = StateNotifierProvider<TestingService, TestingSessionState>((ref) {
   return TestingService();
@@ -65,6 +67,9 @@ class TestingService extends StateNotifier<TestingSessionState> {
     _testSuites[TestSuiteType.firo] = FiroTestSuite();
     _testSuites[TestSuiteType.litecoinMWEB] = LitecoinMWEBTestSuite();
     _testSuites[TestSuiteType.tor] = TorTestSuite();
+    // Phase 4: Bitcoin Ecosystem
+    _testSuites[TestSuiteType.bitcoin] = BitcoinTestSuite();
+    _testSuites[TestSuiteType.bitcoinCash] = BitcoinCashTestSuite();
   }
 
   Future<void> runAllTests() async {

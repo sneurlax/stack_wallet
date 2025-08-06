@@ -31,7 +31,10 @@ enum TestSuiteType {
   epicCash, 
   firo, 
   litecoinMWEB, 
-  tor 
+  tor,
+  // Phase 4: Bitcoin Ecosystem
+  bitcoin,
+  bitcoinCash,
 }
 
 class TestResult {
