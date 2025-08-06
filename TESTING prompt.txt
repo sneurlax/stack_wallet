@@ -1,0 +1,33 @@
+Add a runtime testing feature to Stack Wallet.
+
+A new feature should be added to the 'secret' developer options menu (the hidden page that's accessible by tapping the Stack Wallet logo 7 times) called "Testing".  It should navigate to a new "Testing" page / view.  The page should use a design similar to the Stack Wallet Backup recovery UI with a list of coins to restore in a column with a spinning wheel progress animation on the right of coins being restored and checkmarks added to the right for ones successfully restored, except with the list of test suites / batteries instead of coins.
+
+First, analyze Stack Wallet's codebase and file structure in order to find the areas of code that will be relevant to your implementation: the 'secret' (hidden) developer options view, the Stack Wallet Backup recovery UI, etc.
+
+Then plan the implementation of this testing feature in two phases: first, the testing suite / battery, then the UI integration.
+
+The testing suite should eventually cover all coins and features, but for a first phase, we should simply test the main plugin-based coins: Monero, Wownero, Salvium, Epic Cash, Firo, and Litecoin (MWEB).  Tor functionality (also plugin-based) should also be tested.
+
+After making a plan, review it critically.  If acceptable, record your plan in a ROADMAP.md.
+
+
+
+
+
+Add a runtime testing feature to Stack Wallet.
+
+A new feature should be added to the 'secret' developer options menu (the hidden page that's accessible by tapping the Stack Wallet logo 7 times) called "Testing".  It should navigate to a new "Testing" page / view.  The page should use a design similar to the Stack Wallet Backup recovery UI with a list of coins to restore in a column with a spinning wheel progress animation on the right of coins being restored and checkmarks added to the right for ones successfully restored, except with the list of test suites / batteries instead of coins.
+
+Follow the implementation plan in ROADMAP.md and keep it updated with your progress.
+
+
+
+
+
+OK, I deleted ROADMAP.md.  We need to alter the test functionality to either use programmed vectors or optionally use a Stack Wallet backup file: if a Stack Wallet backup file is used, those wallets should be used to test sending a transaction to itself (a self-spend).  Plan this feature's implementation in a new ROADMAP.md.  Review the plan and if it's acceptable, proceed to complete the implementation and keep ROADMAP.md updated with your progress.
+
+
+
+
+
+You previously implemented a testing feature found in the 'Testing' view.  Your previous findings may be useful context and can be found in 'TESTING ROADMAP.md' and 'SWB ROADMAP.md'. You are in the process of implementing new tests and your progress and plan are documented in ROADMAP.md.  Review the plan and if it's acceptable, proceed with the implementation and keep ROADMAP.md updated with your progress.  Stop after one coin's tests or if you have ample context with which to proceed then continue until a logical stopping point.
