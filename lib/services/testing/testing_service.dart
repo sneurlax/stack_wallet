@@ -13,8 +13,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 
+import '../../services/node_service.dart';
+import '../../services/wallets.dart';
 import '../../themes/stack_colors.dart';
+import '../../utilities/flutter_secure_storage_interface.dart';
 import '../../utilities/logger.dart';
+import '../../utilities/prefs.dart';
+import 'backup_testing/backup_file_handler.dart';
+import 'backup_testing/wallet_restoration_manager.dart';
+import 'backup_testing/transaction_test_executor.dart';
 import 'testing_models.dart';
 import 'test_suite_interface.dart';
 import 'test_suites/monero_test_suite.dart';
@@ -42,6 +49,11 @@ class TestingService extends StateNotifier<TestingSessionState> {
   final Map<TestSuiteType, TestSuiteInterface> _testSuites = {};
   final StreamController<TestingSessionState> _statusController = StreamController<TestingSessionState>.broadcast();
   bool _cancelled = false;
+  
+  // Enhanced backup testing components
+  BackupFileHandler? _backupFileHandler;
+  WalletRestorationManager? _walletRestorationManager;
+  TransactionTestExecutor? _transactionTestExecutor;
 
   Stream<TestingSessionState> get statusStream => _statusController.stream;
 
@@ -56,6 +68,18 @@ class TestingService extends StateNotifier<TestingSessionState> {
   }
 
   Future<void> runAllTests() async {
+    final config = state.currentConfiguration;
+    
+    // Determine which testing mode to use
+    if (config?.mode == TestingMode.backupFile) {
+      await runBackupFileTests();
+    } else {
+      // Default to programmed vectors
+      await _runProgrammedVectorTests();
+    }
+  }
+
+  Future<void> _runProgrammedVectorTests() async {
     if (state.isRunning) return;
     
     _cancelled = false;
@@ -64,6 +88,7 @@ class TestingService extends StateNotifier<TestingSessionState> {
     state = state.copyWith(
       isRunning: true,
       completed: 0,
+      currentPhase: "Running programmed vector tests",
       suiteStatuses: {
         for (var type in TestSuiteType.values) type: TestSuiteStatus.waiting
       },
@@ -79,7 +104,10 @@ class TestingService extends StateNotifier<TestingSessionState> {
     } catch (e) {
       Logging.instance.log(Level.error, "Error running test suites: $e");
     } finally {
-      state = state.copyWith(isRunning: false);
+      state = state.copyWith(
+        isRunning: false,
+        currentPhase: null,
+      );
       _statusController.add(state);
     }
   }
@@ -152,6 +180,9 @@ class TestingService extends StateNotifier<TestingSessionState> {
   }
 
   Future<void> resetTestResults() async {
+    // Clean up any existing test environment
+    await _cleanupTestEnvironment();
+    
     state = TestingSessionState(
       suiteStatuses: {
         for (var type in TestSuiteType.values) type: TestSuiteStatus.waiting
@@ -159,8 +190,146 @@ class TestingService extends StateNotifier<TestingSessionState> {
       isRunning: false,
       completed: 0,
       total: TestSuiteType.values.length,
+      currentConfiguration: null,
+      currentPhase: null,
     );
     _statusController.add(state);
+  }
+
+  /// Configure testing mode and settings
+  Future<void> configureTestingMode(TestConfiguration config) async {
+    if (state.isRunning) {
+      throw Exception("Cannot configure testing while tests are running");
+    }
+
+    state = state.copyWith(
+      currentConfiguration: config,
+      currentPhase: "Configuring testing mode",
+    );
+    _statusController.add(state);
+
+    // Initialize backup testing components if needed
+    if (config.mode == TestingMode.backupFile) {
+      _backupFileHandler ??= BackupFileHandler();
+      _walletRestorationManager ??= WalletRestorationManager();
+      _transactionTestExecutor ??= TransactionTestExecutor();
+      
+      // Validate backup file if provided
+      if (config.backupFilePath != null) {
+        final isValid = await _backupFileHandler!.validateBackupFile(config.backupFilePath!);
+        if (!isValid) {
+          throw Exception("Invalid backup file: ${config.backupFilePath}");
+        }
+      }
+    }
+
+    state = state.copyWith(currentPhase: null);
+    _statusController.add(state);
+    
+    Logging.instance.log(Level.info, "Testing mode configured: ${config.mode}");
+  }
+
+  /// Run backup file tests
+  Future<void> runBackupFileTests() async {
+    final config = state.currentConfiguration;
+    if (config == null || config.mode != TestingMode.backupFile) {
+      throw Exception("Backup file testing mode not configured");
+    }
+
+    if (config.backupFilePath == null || config.backupPassphrase == null) {
+      throw Exception("Backup file path and passphrase required");
+    }
+
+    if (state.isRunning) return;
+    
+    _cancelled = false;
+    _initializeTestSuites();
+    
+    state = state.copyWith(
+      isRunning: true,
+      completed: 0,
+      currentPhase: "Preparing backup file tests",
+      suiteStatuses: {
+        for (var type in TestSuiteType.values) type: TestSuiteStatus.waiting
+      },
+    );
+    _statusController.add(state);
+
+    try {
+      // Phase 1: Decrypt and parse backup file
+      state = state.copyWith(currentPhase: "Decrypting backup file");
+      _statusController.add(state);
+      
+      final decryptedJson = await _backupFileHandler!.decryptBackupFile(
+        config.backupFilePath!,
+        config.backupPassphrase!,
+      );
+
+      state = state.copyWith(currentPhase: "Parsing backup data");
+      _statusController.add(state);
+      
+      final backupData = await _backupFileHandler!.parseBackupData(decryptedJson);
+      final testableWallets = await _backupFileHandler!.getTestableWallets(backupData);
+
+      if (testableWallets.isEmpty) {
+        throw Exception("No testable wallets found in backup file");
+      }
+
+      // Phase 2: Set up test environment
+      state = state.copyWith(currentPhase: "Setting up test environment");
+      _statusController.add(state);
+      
+      final testDB = await _walletRestorationManager!.createTestDatabase();
+      await _walletRestorationManager!.configureTestNodes(backupData.nodes);
+
+      // Phase 3: Run tests with restored wallets
+      state = state.copyWith(currentPhase: "Running backup file tests");
+      _statusController.add(state);
+
+      // Filter test suites to only run ones that have corresponding wallets in backup
+      final availableCoinTypes = testableWallets.map((w) => w.coinName.toLowerCase()).toSet();
+      final suitesToRun = TestSuiteType.values.where((type) {
+        final coinName = _getCoinNameForTestSuite(type);
+        return coinName != null && availableCoinTypes.contains(coinName.toLowerCase());
+      }).toList();
+
+      // Update total to reflect actual number of tests to run
+      state = state.copyWith(total: suitesToRun.length);
+      _statusController.add(state);
+
+      for (final type in suitesToRun) {
+        if (_cancelled) break;
+        await runTestSuite(type);
+      }
+
+    } catch (e) {
+      Logging.instance.log(Level.error, "Error running backup file tests: $e");
+      state = state.copyWith(
+        isRunning: false,
+        currentPhase: "Error: ${e.toString()}",
+      );
+      _statusController.add(state);
+    } finally {
+      await _cleanupTestEnvironment();
+      if (!_cancelled) {
+        state = state.copyWith(
+          isRunning: false,
+          currentPhase: null,
+        );
+        _statusController.add(state);
+      }
+    }
+  }
+
+  /// Run programmed vector tests
+  Future<void> runProgrammedVectorTests() async {
+    final config = state.currentConfiguration;
+    if (config == null || config.mode != TestingMode.programmedVectors) {
+      throw Exception("Programmed vector testing mode not configured");
+    }
+
+    // Use the existing runAllTests implementation for programmed vectors
+    await runAllTests();
   }
 
   TestSuiteInterface? getTestSuite(TestSuiteType type) {
@@ -243,8 +412,51 @@ class TestingService extends StateNotifier<TestingSessionState> {
     }
   }
 
+  /// Helper method to get coin name for test suite type
+  String? _getCoinNameForTestSuite(TestSuiteType type) {
+    switch (type) {
+      case TestSuiteType.monero:
+        return "monero";
+      case TestSuiteType.wownero:
+        return "wownero";
+      case TestSuiteType.salvium:
+        return "salvium";
+      case TestSuiteType.epicCash:
+        return "epiccash";
+      case TestSuiteType.firo:
+        return "firo";
+      case TestSuiteType.litecoinMWEB:
+        return "litecoin";
+      case TestSuiteType.tor:
+        return null; // Tor is not a coin
+    }
+  }
+
+  /// Clean up test environment
+  Future<void> _cleanupTestEnvironment() async {
+    try {
+      if (_walletRestorationManager != null) {
+        await _walletRestorationManager!.cleanup();
+        _walletRestorationManager = null;
+      }
+      
+      _backupFileHandler = null;
+      _transactionTestExecutor = null;
+      
+      Logging.instance.log(Level.info, "Test environment cleanup completed");
+    } catch (e) {
+      Logging.instance.log(Level.error, "Error during test environment cleanup: $e");
+    }
+  }
+
+  // Getters for accessing backup testing components
+  BackupFileHandler? get backupFileHandler => _backupFileHandler;
+  WalletRestorationManager? get walletRestorationManager => _walletRestorationManager;
+  TransactionTestExecutor? get transactionTestExecutor => _transactionTestExecutor;
+
   @override
   void dispose() {
+    _cleanupTestEnvironment();
     _statusController.close();
     super.dispose();
   }

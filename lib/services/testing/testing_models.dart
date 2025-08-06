@@ -11,6 +11,19 @@
 
 enum TestSuiteStatus { waiting, running, passed, failed }
 
+enum TestingMode { 
+  programmedVectors,    // Use pre-defined test scenarios
+  backupFile           // Restore from .swb backup and test
+}
+
+enum TestVectorType {
+  basicWalletCreation,
+  addressGeneration,
+  balanceCalculation,
+  transactionValidation,
+  selfSpendTransaction  // New for backup file testing
+}
+
 enum TestSuiteType { 
   monero, 
   wownero, 
@@ -35,17 +48,104 @@ class TestResult {
   });
 }
 
+class TestConfiguration {
+  final TestingMode mode;
+  final String? backupFilePath;
+  final String? backupPassphrase;
+  final List<String>? selectedWalletIds; // null = test all wallets
+  final String? testAmount;              // Amount for self-spend (in base units)
+  final int? feeRate;                    // Satoshis per byte for fee calculation
+  final bool skipNetworkTests;          // Skip tests requiring network
+
+  const TestConfiguration({
+    required this.mode,
+    this.backupFilePath,
+    this.backupPassphrase,
+    this.selectedWalletIds,
+    this.testAmount,
+    this.feeRate,
+    this.skipNetworkTests = false,
+  });
+
+  TestConfiguration copyWith({
+    TestingMode? mode,
+    String? backupFilePath,
+    String? backupPassphrase,
+    List<String>? selectedWalletIds,
+    String? testAmount,
+    int? feeRate,
+    bool? skipNetworkTests,
+  }) {
+    return TestConfiguration(
+      mode: mode ?? this.mode,
+      backupFilePath: backupFilePath ?? this.backupFilePath,
+      backupPassphrase: backupPassphrase ?? this.backupPassphrase,
+      selectedWalletIds: selectedWalletIds ?? this.selectedWalletIds,
+      testAmount: testAmount ?? this.testAmount,
+      feeRate: feeRate ?? this.feeRate,
+      skipNetworkTests: skipNetworkTests ?? this.skipNetworkTests,
+    );
+  }
+}
+
+class BackupTestResult extends TestResult {
+  final int walletsRestored;
+  final int transactionsAttempted;
+  final int transactionsSuccessful;
+  final List<String> transactionIds;
+  final Map<String, String> walletErrors;
+
+  const BackupTestResult({
+    required bool success,
+    required String message,
+    required List<String> logs,
+    required Duration executionTime,
+    required this.walletsRestored,
+    required this.transactionsAttempted,
+    required this.transactionsSuccessful,
+    required this.transactionIds,
+    required this.walletErrors,
+  }) : super(
+          success: success,
+          message: message,
+          logs: logs,
+          executionTime: executionTime,
+        );
+}
+
+class TransactionTestResult {
+  final bool success;
+  final String? transactionId;
+  final String? errorMessage;
+  final String? actualFee;
+  final Duration executionTime;
+  final bool wasBroadcast;
+
+  const TransactionTestResult({
+    required this.success,
+    this.transactionId,
+    this.errorMessage,
+    this.actualFee,
+    required this.executionTime,
+    required this.wasBroadcast,
+  });
+}
+
 class TestingSessionState {
   final Map<TestSuiteType, TestSuiteStatus> suiteStatuses;
   final bool isRunning;
   final int completed;
   final int total;
+  final TestConfiguration? currentConfiguration;
+  final String? currentPhase; // "Restoring wallets", "Running tests", etc.
 
   const TestingSessionState({
     required this.suiteStatuses,
     required this.isRunning,
     required this.completed,
     required this.total,
+    this.currentConfiguration,
+    this.currentPhase,
   });
 
   TestingSessionState copyWith({
@@ -53,12 +153,16 @@ class TestingSessionState {
     bool? isRunning,
     int? completed,
     int? total,
+    TestConfiguration? currentConfiguration,
+    String? currentPhase,
   }) {
     return TestingSessionState(
       suiteStatuses: suiteStatuses ?? this.suiteStatuses,
       isRunning: isRunning ?? this.isRunning,
       completed: completed ?? this.completed,
       total: total ?? this.total,
+      currentConfiguration: currentConfiguration ?? this.currentConfiguration,
+      currentPhase: currentPhase ?? this.currentPhase,
     );
   }
 }
