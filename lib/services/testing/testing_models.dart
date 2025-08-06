@@ -38,6 +38,8 @@ enum TestSuiteType {
   bitcoinFrost,
   ecash,
   dogecoin,
+  dash,
+  litecoin,
 }
 
 class TestResult {

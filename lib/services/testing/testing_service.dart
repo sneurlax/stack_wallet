@@ -36,6 +36,8 @@ import 'test_suites/bitcoincash_test_suite.dart';
 import 'test_suites/bitcoin_frost_test_suite.dart';
 import 'test_suites/ecash_test_suite.dart';
 import 'test_suites/dogecoin_test_suite.dart';
+import 'test_suites/dash_test_suite.dart';
+import 'test_suites/litecoin_test_suite.dart';
 
 final testingServiceProvider = StateNotifierProvider<TestingService, TestingSessionState>((ref) {
   return TestingService();
@@ -76,6 +78,8 @@ class TestingService extends StateNotifier<TestingSessionState> {
     _testSuites[TestSuiteType.bitcoinFrost] = BitcoinFrostTestSuite();
     _testSuites[TestSuiteType.ecash] = EcashTestSuite();
     _testSuites[TestSuiteType.dogecoin] = DogecoinTestSuite();
+    _testSuites[TestSuiteType.dash] = DashTestSuite();
+    _testSuites[TestSuiteType.litecoin] = LitecoinTestSuite();
   }
 
   Future<void> runAllTests() async {
