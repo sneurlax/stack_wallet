@@ -40,6 +40,9 @@ enum TestSuiteType {
   dogecoin,
   dash,
   litecoin,
+  namecoin,
+  particl,
+  peercoin,
 }
 
 class TestResult {
