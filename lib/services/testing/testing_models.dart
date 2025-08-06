@@ -35,6 +35,9 @@ enum TestSuiteType {
   // Phase 4: Bitcoin Ecosystem
   bitcoin,
   bitcoinCash,
+  bitcoinFrost,
+  ecash,
+  dogecoin,
 }
 
 class TestResult {

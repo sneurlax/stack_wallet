@@ -33,6 +33,9 @@ import 'test_suites/litecoin_mweb_test_suite.dart';
 import 'test_suites/tor_test_suite.dart';
 import 'test_suites/bitcoin_test_suite.dart';
 import 'test_suites/bitcoincash_test_suite.dart';
+import 'test_suites/bitcoin_frost_test_suite.dart';
+import 'test_suites/ecash_test_suite.dart';
+import 'test_suites/dogecoin_test_suite.dart';
 
 final testingServiceProvider = StateNotifierProvider<TestingService, TestingSessionState>((ref) {
   return TestingService();
@@ -70,6 +73,9 @@ class TestingService extends StateNotifier<TestingSessionState> {
     // Phase 4: Bitcoin Ecosystem
     _testSuites[TestSuiteType.bitcoin] = BitcoinTestSuite();
     _testSuites[TestSuiteType.bitcoinCash] = BitcoinCashTestSuite();
+    _testSuites[TestSuiteType.bitcoinFrost] = BitcoinFrostTestSuite();
+    _testSuites[TestSuiteType.ecash] = EcashTestSuite();
+    _testSuites[TestSuiteType.dogecoin] = DogecoinTestSuite();
   }
 
   Future<void> runAllTests() async {
