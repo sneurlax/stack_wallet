@@ -25,6 +25,7 @@ abstract class CsMoneroInterface {
     String walletId, {
     required String path,
     required String password,
+    int network = 0,
   });
 
   Future<String> getAddress(
@@ -38,6 +39,7 @@ abstract class CsMoneroInterface {
     required String password,
     required int wordCount,
     required String seedOffset,
+    int network = 0,
   });
 
   Future<WrappedWallet> getRestoredWallet({
@@ -46,6 +48,7 @@ abstract class CsMoneroInterface {
     required String password,
     required String mnemonic,
     required String seedOffset,
+    int network = 0,
     int height = 0,
   });
 
@@ -55,6 +58,7 @@ abstract class CsMoneroInterface {
     required String password,
     required String address,
     required String privateViewKey,
+    int network = 0,
     int height = 0,
   });
 
