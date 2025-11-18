@@ -27,8 +27,10 @@ import '../../../utilities/assets.dart';
 import '../../../utilities/constants.dart';
 import '../../../utilities/default_eth_tokens.dart';
 import '../../../utilities/default_sol_tokens.dart';
+import '../../../utilities/logger.dart';
 import '../../../utilities/text_styles.dart';
 import '../../../utilities/util.dart';
+import '../../../wallets/isar/providers/solana/discovered_sol_tokens_provider.dart';
 import '../../../wallets/isar/providers/wallet_info_provider.dart';
 import '../../../wallets/wallet/impl/ethereum_wallet.dart';
 import '../../../wallets/wallet/impl/solana_wallet.dart';
@@ -292,6 +294,73 @@ class _EditWalletTokensViewState extends ConsumerState<EditWalletTokensView> {
     }
 
     super.initState();
+
+    if (wallet is SolanaWallet) {
+      unawaited(_loadDiscoveredTokens(wallet));
+    }
+  }
+
+  /// Discover the SPL tokens held by [wallet] and merge them into the list.
+  ///
+  /// Tokens already present (e.g. defaults) are marked as selected, while
+  /// newly discovered tokens are added to the top of the list and selected.
+  Future<void> _loadDiscoveredTokens(SolanaWallet wallet) async {
+    try {
+      final address = await wallet.getCurrentReceivingAddress();
+      if (address == null) {
+        return;
+      }
+
+      final discovered = await ref.read(
+        pDiscoveredSolanaTokens((
+          walletId: widget.walletId,
+          walletAddress: address.value,
+        )).future,
+      );
+
+      if (discovered.isEmpty) {
+        return;
+      }
+
+      final newContracts = discovered
+          .where(
+            (token) =>
+                tokenEntities.every((e) => e.token.address != token.address),
+          )
+          .toList();
+
+      if (newContracts.isNotEmpty) {
+        await MainDB.instance.putSolContracts(newContracts);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        var insertIndex = 0;
+        for (final token in discovered) {
+          final existing = tokenEntities
+              .where((e) => e.token.address == token.address)
+              .toList();
+          if (existing.isNotEmpty) {
+            existing.first.selected = true;
+          } else {
+            tokenEntities.insert(
+              insertIndex,
+              AddTokenListElementData(token)..selected = true,
+            );
+            insertIndex++;
+          }
+        }
+      });
+    } catch (e, s) {
+      Logging.instance.w(
+        "Failed to load discovered Solana tokens for ${widget.walletId}",
+        error: e,
+        stackTrace: s,
+      );
+    }
   }
 
   @override
