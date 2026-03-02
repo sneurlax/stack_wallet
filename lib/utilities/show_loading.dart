@@ -48,7 +48,7 @@ Future<T?> showLoading<T>({
         child: Container(
           color: Theme.of(
             context,
-          ).extension<StackColors>()!.overlay.withOpacity(opaqueBG ? 1.0 : 0.6),
+          ).extension<StackColors>()!.overlay.withValues(alpha: opaqueBG ? 1.0 : 0.6),
           child: CustomLoadingOverlay(
             message: message,
             subMessage: subMessage,

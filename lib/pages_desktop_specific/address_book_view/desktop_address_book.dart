@@ -355,7 +355,7 @@ class _DesktopAddressBook extends ConsumerState<DesktopAddressBook> {
                                 color: Theme.of(context)
                                     .extension<StackColors>()!
                                     .accentColorDark
-                                    .withOpacity(
+                                    .withValues(alpha: 
                                       currentContactId == favorites[i].customId
                                           ? 0.08
                                           : 0,
@@ -426,7 +426,7 @@ class _DesktopAddressBook extends ConsumerState<DesktopAddressBook> {
                                     color: Theme.of(context)
                                         .extension<StackColors>()!
                                         .accentColorDark
-                                        .withOpacity(
+                                        .withValues(alpha: 
                                           currentContactId ==
                                                   allContacts[i].customId
                                               ? 0.08

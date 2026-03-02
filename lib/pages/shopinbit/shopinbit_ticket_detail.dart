@@ -326,11 +326,11 @@ class _ShopInBitTicketDetailState extends ConsumerState<ShopInBitTicketDetail> {
                       .copyWith(
                         fontSize: 10,
                         color: message.isFromUser
-                            ? Colors.white.withOpacity(0.7)
+                            ? Colors.white.withValues(alpha: 0.7)
                             : Theme.of(context)
                                   .extension<StackColors>()!
                                   .textSubtitle1
-                                  .withOpacity(0.7),
+                                  .withValues(alpha: 0.7),
                       ),
             ),
           ],
@@ -367,7 +367,7 @@ class _ShopInBitTicketDetailState extends ConsumerState<ShopInBitTicketDetail> {
                 borderRadius: BorderRadius.circular(8),
                 color: model.status
                     .getColor(Theme.of(context).extension<StackColors>()!)
-                    .withOpacity(0.2),
+                    .withValues(alpha: 0.2),
               ),
               child: Text(
                 model.status.label,

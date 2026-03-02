@@ -285,7 +285,7 @@ class TokenOptionsButton extends StatelessWidget {
                 padding: const EdgeInsets.all(6),
                 color: Theme.of(
                   context,
-                ).extension<StackColors>()!.tokenSummaryIcon.withOpacity(0.4),
+                ).extension<StackColors>()!.tokenSummaryIcon.withValues(alpha: 0.4),
                 radiusMultiplier: 10,
                 child: Center(child: child),
               ),

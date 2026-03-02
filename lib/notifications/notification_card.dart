@@ -183,7 +183,7 @@ class NotificationCard extends ConsumerWidget {
               color: Theme.of(context)
                   .extension<StackColors>()!
                   .background
-                  .withOpacity(0.5),
+                  .withValues(alpha: 0.5),
             ),
           ),
       ],

@@ -69,7 +69,7 @@ class _NumberKeyState extends State<NumberKey> {
             _color = Theme.of(context)
                 .extension<StackColors>()!
                 .numberBackDefault
-                .withOpacity(0.8);
+                .withValues(alpha: 0.8);
           });
 
           Future<void>.delayed(const Duration(milliseconds: 200), () {
@@ -139,7 +139,7 @@ class _BackspaceKeyState extends State<BackspaceKey> {
             _color = Theme.of(context)
                 .extension<StackColors>()!
                 .numpadBackDefault
-                .withOpacity(0.8);
+                .withValues(alpha: 0.8);
           });
 
           Future<void>.delayed(const Duration(milliseconds: 200), () {

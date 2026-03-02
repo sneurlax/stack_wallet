@@ -47,7 +47,7 @@ class DesktopMyStackIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -67,7 +67,7 @@ class DesktopExchangeIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -87,7 +87,7 @@ class DesktopBuyIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -107,7 +107,7 @@ class DesktopServicesIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -143,7 +143,9 @@ class DesktopNotificationsIcon extends ConsumerWidget {
                 ? Theme.of(context).extension<StackColors>()!.accentColorDark
                 : Theme.of(
                     context,
-                  ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+                  ).extension<StackColors>()!.accentColorDark.withValues(
+                    alpha: 0.8,
+                  ),
           );
   }
 }
@@ -163,7 +165,7 @@ class DesktopAddressBookIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -183,7 +185,7 @@ class DesktopSettingsIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -203,7 +205,7 @@ class DesktopSupportIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -223,7 +225,7 @@ class DesktopAboutIcon extends ConsumerWidget {
           ? Theme.of(context).extension<StackColors>()!.accentColorDark
           : Theme.of(
               context,
-            ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+            ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
@@ -239,7 +241,7 @@ class DesktopExitIcon extends ConsumerWidget {
       height: 20,
       color: Theme.of(
         context,
-      ).extension<StackColors>()!.accentColorDark.withOpacity(0.8),
+      ).extension<StackColors>()!.accentColorDark.withValues(alpha: 0.8),
     );
   }
 }
