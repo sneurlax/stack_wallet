@@ -17,6 +17,8 @@ import 'package:tuple/tuple.dart';
 
 import '../../../app_config.dart';
 import '../../../models/exchange/incomplete_exchange.dart';
+import '../../../models/input.dart';
+import '../../../models/isar/models/isar_models.dart';
 import '../../../providers/providers.dart';
 import '../../../route_generator.dart';
 import '../../../themes/stack_colors.dart';
@@ -33,8 +35,10 @@ import '../../../wallets/crypto_currency/crypto_currency.dart';
 import '../../../wallets/isar/providers/wallet_info_provider.dart';
 import '../../../wallets/models/tx_data.dart';
 import '../../../wallets/wallet/impl/firo_wallet.dart';
+import '../../../wallets/wallet/wallet_mixin_interfaces/coin_control_interface.dart';
 import '../../../widgets/background.dart';
 import '../../../widgets/custom_buttons/app_bar_icon_button.dart';
+import '../../../widgets/custom_buttons/blue_text_button.dart';
 import '../../../widgets/custom_buttons/simple_copy_button.dart';
 import '../../../widgets/desktop/primary_button.dart';
 import '../../../widgets/desktop/secondary_button.dart';
@@ -43,6 +47,7 @@ import '../../../widgets/qr.dart';
 import '../../../widgets/rounded_container.dart';
 import '../../../widgets/rounded_white_container.dart';
 import '../../../widgets/stack_dialog.dart';
+import '../../coin_control/coin_control_view.dart';
 import '../../home_view/home_view.dart';
 import '../../send_view/sub_widgets/building_transaction_dialog.dart';
 import '../../wallet_view/wallet_view.dart';
@@ -70,6 +75,8 @@ class _Step4ViewState extends ConsumerState<Step4View> {
   late final bool isWalletCoinAndCanSend;
   late final IncompleteExchangeModel model;
   late final ClipboardInterface clipboard;
+
+  Set<UTXO> _selectedUTXOs = {};
 
   String _statusString = "New";
 
@@ -287,6 +294,11 @@ class _Step4ViewState extends ConsumerState<Step4View> {
         addressType: wallet.cryptoCurrency.getAddressType(address)!,
       );
 
+      // Build utxos set from selected UTXOs if any
+      final selectedInputs = _selectedUTXOs.isNotEmpty
+          ? _selectedUTXOs.map((e) => StandardInput(e)).toSet()
+          : null;
+
       if (wallet is FiroWallet && !firoPublicSend) {
         txDataFuture = wallet.prepareSendSpark(
           txData: TxData(
@@ -307,6 +319,7 @@ class _Step4ViewState extends ConsumerState<Step4View> {
             recipients: [recipient],
             memo: memo,
             feeRateType: FeeRateType.average,
+            utxos: selectedInputs,
             note:
                 "${model.trade!.payInCurrency.toUpperCase()}/"
                 "${model.trade!.payOutCurrency.toUpperCase()} exchange",
@@ -525,6 +538,116 @@ class _Step4ViewState extends ConsumerState<Step4View> {
                               ),
                               if (isWalletCoinAndCanSend)
                                 const SizedBox(height: 12),
+                              if (isWalletCoinAndCanSend)
+                                Builder(
+                                  builder: (context) {
+                                    final tuple = ref.watch(
+                                      exchangeSendFromWalletIdStateProvider
+                                          .state,
+                                    ).state;
+                                    if (tuple == null ||
+                                        model.sendTicker.toLowerCase() !=
+                                            tuple.item2.ticker.toLowerCase()) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    final wallet = ref
+                                        .watch(pWallets)
+                                        .getWallet(tuple.item1);
+                                    final coinControlEnabled = ref.watch(
+                                      prefsChangeNotifierProvider.select(
+                                        (value) => value.enableCoinControl,
+                                      ),
+                                    );
+
+                                    // Firo sends from the exchange flow may
+                                    // spend from the Spark (private) balance,
+                                    // which selects coins via the native Spark
+                                    // library and cannot honor a manual UTXO
+                                    // selection. Hide coin control for Firo so
+                                    // the UI does not promise control it would
+                                    // silently ignore on a Spark send.
+                                    if (wallet is! CoinControlInterface ||
+                                        wallet.info.coin is Firo ||
+                                        !coinControlEnabled) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
+                                      child: RoundedWhiteContainer(
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              "Coin control",
+                                              style: STextStyles.w500_14(
+                                                context,
+                                              ).copyWith(
+                                                color: Theme.of(context)
+                                                    .extension<StackColors>()!
+                                                    .textSubtitle1,
+                                              ),
+                                            ),
+                                            CustomTextButton(
+                                              text: _selectedUTXOs.isEmpty
+                                                  ? "Select coins"
+                                                  : "Selected coins"
+                                                      " (${_selectedUTXOs.length})",
+                                              onTap: () async {
+                                                if (FocusScope.of(context)
+                                                    .hasFocus) {
+                                                  FocusScope.of(context)
+                                                      .unfocus();
+                                                  await Future<void>.delayed(
+                                                    const Duration(
+                                                      milliseconds: 100,
+                                                    ),
+                                                  );
+                                                }
+
+                                                if (context.mounted) {
+                                                  final sendAmount =
+                                                      model.sendAmount
+                                                          .toAmount(
+                                                            fractionDigits: wallet
+                                                                .info
+                                                                .coin
+                                                                .fractionDigits,
+                                                          );
+
+                                                  final result =
+                                                      await Navigator.of(
+                                                        context,
+                                                      ).pushNamed(
+                                                        CoinControlView
+                                                            .routeName,
+                                                        arguments: Tuple4(
+                                                          tuple.item1,
+                                                          CoinControlViewType
+                                                              .use,
+                                                          sendAmount,
+                                                          _selectedUTXOs,
+                                                        ),
+                                                      );
+
+                                                  if (result is Set<UTXO>) {
+                                                    setState(() {
+                                                      _selectedUTXOs = result;
+                                                    });
+                                                  }
+                                                }
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               if (isWalletCoinAndCanSend)
                                 _SendFromButton(
                                   model: model,
