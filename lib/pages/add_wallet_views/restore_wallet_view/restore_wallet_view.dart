@@ -175,6 +175,28 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
     super.dispose();
   }
 
+  // The number of leading characters CryptoNote (Monero/Wownero/Salvium)
+  // mnemonics use when matching words. Words are compared by this unique
+  // prefix rather than by their full spelling, so valid seeds may contain
+  // truncations or inflections that are not verbatim wordlist entries.
+  // English and the other supported languages use a prefix length of 3.
+  static const int _cryptonotePrefixLength = 3;
+
+  String _cryptonotePrefix(String word) =>
+      word.length <= _cryptonotePrefixLength
+      ? word
+      : word.substring(0, _cryptonotePrefixLength);
+
+  bool _isValidCryptonoteWord(String word, List<String> wordList) {
+    // Fast path: exact match.
+    if (wordList.contains(word)) {
+      return true;
+    }
+    // CryptoNote matches words by their unique prefix, not the full word.
+    final prefix = _cryptonotePrefix(word);
+    return wordList.any((w) => _cryptonotePrefix(w) == prefix);
+  }
+
   // TODO: check for wownero wordlist?
   bool _isValidMnemonicWord(String word) {
     // TODO: get the actual language
@@ -182,8 +204,13 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
       // Salvium use's Monero's wordlists.
       switch (widget.seedWordsLength) {
         case 25:
-          return csMonero.getMoneroWordList("English").contains(word);
+          return _isValidCryptonoteWord(
+            word,
+            csMonero.getMoneroWordList("English"),
+          );
         case 16:
+          // The 16 word seed is a BIP39 style (Polyseed) wordlist whose words
+          // must match exactly, so the CryptoNote prefix rule does not apply.
           return Monero.sixteenWordsWordList.contains(word);
         default:
           return false;
@@ -194,6 +221,11 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
         "English",
         widget.seedWordsLength,
       );
+      // Only the 25 word seed uses the CryptoNote prefix wordlist. The 14 word
+      // seed is a BIP39 style (Polyseed) wordlist requiring an exact match.
+      if (widget.seedWordsLength == 25) {
+        return _isValidCryptonoteWord(word, wowneroWordList);
+      }
       return wowneroWordList.contains(word);
     }
     if (widget.coin is Xelis) {
@@ -218,6 +250,24 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
         mnemonic += " ${element.text.trim().toLowerCase()}";
       }
       mnemonic = mnemonic.trim();
+
+      // Verify word count matches expected seed length.
+      final wordCount = mnemonic.split(" ").length;
+      if (wordCount != _seedWordCount) {
+        if (mounted) {
+          unawaited(
+            showFloatingFlushBar(
+              type: FlushBarType.warning,
+              message:
+                  "Expected $_seedWordCount words but got $wordCount. "
+                  "Please fill in all fields.",
+              context: context,
+            ),
+          );
+          setState(() => _hideSeedWords = false);
+        }
+        return;
+      }
 
       int height = widget.restoreBlockHeight;
       String? otherDataJsonString;
@@ -887,6 +937,18 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
                                                       i * 4 + j - 1 == 1
                                                       ? textSelectionControls
                                                       : null,
+                                                  validator: (value) {
+                                                    if (value == null ||
+                                                        value.trim().isEmpty) {
+                                                      return "Required";
+                                                    }
+                                                    if (!_isValidMnemonicWord(
+                                                      value.trim().toLowerCase(),
+                                                    )) {
+                                                      return "Invalid word";
+                                                    }
+                                                    return null;
+                                                  },
                                                   // focusNode:
                                                   //     _focusNodes[i * 4 + j - 1],
                                                   onChanged: (value) {
@@ -1032,6 +1094,18 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
                                                   selectionControls: i == 1
                                                       ? textSelectionControls
                                                       : null,
+                                                  validator: (value) {
+                                                    if (value == null ||
+                                                        value.trim().isEmpty) {
+                                                      return "Required";
+                                                    }
+                                                    if (!_isValidMnemonicWord(
+                                                      value.trim().toLowerCase(),
+                                                    )) {
+                                                      return "Invalid word";
+                                                    }
+                                                    return null;
+                                                  },
                                                   onChanged: (value) {
                                                     final FormInputStatus
                                                     formInputStatus;
@@ -1169,6 +1243,18 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
                                     selectionControls: i == 1
                                         ? textSelectionControls
                                         : null,
+                                    validator: (value) {
+                                      if (value == null ||
+                                          value.trim().isEmpty) {
+                                        return "Required";
+                                      }
+                                      if (!_isValidMnemonicWord(
+                                        value.trim().toLowerCase(),
+                                      )) {
+                                        return "Invalid word";
+                                      }
+                                      return null;
+                                    },
                                     // focusNode: _focusNodes[i - 1],
                                     onChanged: (value) {
                                       final FormInputStatus formInputStatus;
