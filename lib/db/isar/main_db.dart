@@ -371,6 +371,34 @@ class MainDB {
         await isar.transactionNotes.put(transactionNote);
       });
 
+  /// Auto-labels UTXOs associated with a transaction note.
+  /// Only labels UTXOs that don't already have a user-set name.
+  Future<void> autoLabelUTXOsFromNote(TransactionNote note) async {
+    if (note.value.isEmpty) return;
+
+    final utxos = await isar.utxos
+        .where()
+        .walletIdEqualTo(note.walletId)
+        .filter()
+        .txidEqualTo(note.txid)
+        .findAll();
+
+    if (utxos.isEmpty) return;
+
+    final toUpdate = <UTXO>[];
+    for (final utxo in utxos) {
+      if (utxo.name.isEmpty) {
+        toUpdate.add(utxo.copyWith(name: note.value));
+      }
+    }
+
+    if (toUpdate.isNotEmpty) {
+      await isar.writeTxn(() async {
+        await isar.utxos.putAll(toUpdate);
+      });
+    }
+  }
+
   Future<void> putTransactionNotes(List<TransactionNote> transactionNotes) =>
       isar.writeTxn(() async {
         await isar.transactionNotes.putAll(transactionNotes);

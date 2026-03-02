@@ -187,16 +187,19 @@ class _EditNoteViewState extends ConsumerState<EditNoteView> {
                   child: PrimaryButton(
                     label: "Save",
                     onPressed: () async {
+                      final note =
+                          _note?.copyWith(value: _noteController.text) ??
+                              TransactionNote(
+                                walletId: widget.walletId,
+                                txid: widget.txid,
+                                value: _noteController.text,
+                              );
                       await ref
                           .read(mainDBProvider)
-                          .putTransactionNote(
-                            _note?.copyWith(value: _noteController.text) ??
-                                TransactionNote(
-                                  walletId: widget.walletId,
-                                  txid: widget.txid,
-                                  value: _noteController.text,
-                                ),
-                          );
+                          .putTransactionNote(note);
+                      await ref
+                          .read(mainDBProvider)
+                          .autoLabelUTXOsFromNote(note);
 
                       if (mounted) {
                         Navigator.of(context).pop();
@@ -207,16 +210,19 @@ class _EditNoteViewState extends ConsumerState<EditNoteView> {
               if (!isDesktop)
                 TextButton(
                   onPressed: () async {
+                    final note =
+                        _note?.copyWith(value: _noteController.text) ??
+                            TransactionNote(
+                              walletId: widget.walletId,
+                              txid: widget.txid,
+                              value: _noteController.text,
+                            );
                     await ref
                         .read(mainDBProvider)
-                        .putTransactionNote(
-                          _note?.copyWith(value: _noteController.text) ??
-                              TransactionNote(
-                                walletId: widget.walletId,
-                                txid: widget.txid,
-                                value: _noteController.text,
-                              ),
-                        );
+                        .putTransactionNote(note);
+                    await ref
+                        .read(mainDBProvider)
+                        .autoLabelUTXOsFromNote(note);
                     if (mounted) {
                       Navigator.of(context).pop();
                     }

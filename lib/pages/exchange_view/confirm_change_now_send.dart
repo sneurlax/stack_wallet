@@ -122,11 +122,13 @@ class _ConfirmChangeNowSendViewState
       txid = (results.first as TxData).txid!;
 
       // save note
-      await ref
-          .read(mainDBProvider)
-          .putTransactionNote(
-            TransactionNote(walletId: walletId, txid: txid, value: note),
-          );
+      final txNote = TransactionNote(
+        walletId: walletId,
+        txid: txid,
+        value: note,
+      );
+      await ref.read(mainDBProvider).putTransactionNote(txNote);
+      await ref.read(mainDBProvider).autoLabelUTXOsFromNote(txNote);
 
       await ref
           .read(tradeSentFromStackLookupProvider)

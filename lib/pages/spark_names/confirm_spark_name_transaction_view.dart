@@ -121,11 +121,13 @@ class _ConfirmSparkNameTransactionViewState
 
       // save note
       for (final txid in txids) {
-        await ref
-            .read(mainDBProvider)
-            .putTransactionNote(
-              TransactionNote(walletId: walletId, txid: txid, value: note),
-            );
+        final txNote = TransactionNote(
+          walletId: walletId,
+          txid: txid,
+          value: note,
+        );
+        await ref.read(mainDBProvider).putTransactionNote(txNote);
+        await ref.read(mainDBProvider).autoLabelUTXOsFromNote(txNote);
       }
 
       final address = txData.sparkNameInfo?.sparkAddress;
