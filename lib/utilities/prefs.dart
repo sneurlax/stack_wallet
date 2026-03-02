@@ -81,6 +81,7 @@ class Prefs extends ChangeNotifier {
       _logsPath = await _getLogsPath();
       _logLevel = await _getLogLevel();
       _autoLockInfo = await _getAutoLockInfo();
+      _hideBalances = await _getHideBalances();
 
       _initialized = true;
     }
@@ -1382,5 +1383,32 @@ class Prefs extends ChangeNotifier {
         {"enabled": false, "minutes": 10};
 
     return (enabled: map["enabled"] as bool, minutes: map["minutes"] as int);
+  }
+
+  // hide balances
+
+  bool _hideBalances = false;
+
+  bool get hideBalances => _hideBalances;
+
+  set hideBalances(bool hideBalances) {
+    if (_hideBalances != hideBalances) {
+      DB.instance.put<dynamic>(
+        boxName: DB.boxNamePrefs,
+        key: "hideBalances",
+        value: hideBalances,
+      );
+      _hideBalances = hideBalances;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> _getHideBalances() async {
+    return await DB.instance.get<dynamic>(
+              boxName: DB.boxNamePrefs,
+              key: "hideBalances",
+            )
+            as bool? ??
+        false;
   }
 }

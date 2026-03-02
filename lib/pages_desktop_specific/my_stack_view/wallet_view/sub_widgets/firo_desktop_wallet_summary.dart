@@ -194,7 +194,12 @@ class _Balance extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SelectableText(
-      ref.watch(pAmountFormatter(coin)).format(amount, ethContract: null),
+      ref.watch(
+            prefsChangeNotifierProvider
+                .select((value) => value.hideBalances),
+          )
+          ? "••••••"
+          : ref.watch(pAmountFormatter(coin)).format(amount, ethContract: null),
       style: STextStyles.desktopH3(context),
       textAlign: TextAlign.end,
     );
@@ -218,8 +223,13 @@ class _Price extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(left: 16),
       child: SelectableText(
-        "${Amount.fromDecimal(price * amount.decimal, fractionDigits: 2).fiatString(locale: ref.watch(localeServiceChangeNotifierProvider.select((value) => value.locale)))} "
-        "${ref.watch(prefsChangeNotifierProvider.select((value) => value.currency))}",
+        ref.watch(
+              prefsChangeNotifierProvider
+                  .select((value) => value.hideBalances),
+            )
+            ? "••••••"
+            : "${Amount.fromDecimal(price * amount.decimal, fractionDigits: 2).fiatString(locale: ref.watch(localeServiceChangeNotifierProvider.select((value) => value.locale)))} "
+                "${ref.watch(prefsChangeNotifierProvider.select((value) => value.currency))}",
         style: STextStyles.desktopTextExtraSmall(context).copyWith(
           color: Theme.of(context).extension<StackColors>()!.textSubtitle1,
         ),

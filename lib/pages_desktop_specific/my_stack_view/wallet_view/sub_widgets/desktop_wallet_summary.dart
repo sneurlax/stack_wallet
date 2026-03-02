@@ -139,15 +139,25 @@ class _WDesktopWalletSummaryState extends ConsumerState<DesktopWalletSummary> {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: SelectableText(
-                    ref
-                        .watch(pAmountFormatter(coin))
-                        .format(balanceToShow, ethContract: tokenContract),
+                    ref.watch(
+                          prefsChangeNotifierProvider
+                              .select((value) => value.hideBalances),
+                        )
+                        ? "••••••"
+                        : ref
+                            .watch(pAmountFormatter(coin))
+                            .format(balanceToShow, ethContract: tokenContract),
                     style: STextStyles.desktopH3(context),
                   ),
                 ),
                 if (externalCalls && price != null)
                   SelectableText(
-                    "${Amount.fromDecimal(price.value * balanceToShow.decimal, fractionDigits: 2).fiatString(locale: locale)} $baseCurrency",
+                    ref.watch(
+                          prefsChangeNotifierProvider
+                              .select((value) => value.hideBalances),
+                        )
+                        ? "••••••"
+                        : "${Amount.fromDecimal(price.value * balanceToShow.decimal, fractionDigits: 2).fiatString(locale: locale)} $baseCurrency",
                     style: STextStyles.desktopTextExtraSmall(context).copyWith(
                       color:
                           Theme.of(
@@ -181,6 +191,26 @@ class _WDesktopWalletSummaryState extends ConsumerState<DesktopWalletSummary> {
 
             const SizedBox(width: 8),
             const DesktopBalanceToggleButton(),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                ref.read(prefsChangeNotifierProvider).hideBalances =
+                    !ref.read(prefsChangeNotifierProvider).hideBalances;
+              },
+              child: Icon(
+                ref.watch(
+                      prefsChangeNotifierProvider
+                          .select((value) => value.hideBalances),
+                    )
+                    ? Icons.visibility_off
+                    : Icons.visibility,
+                color:
+                    Theme.of(
+                      context,
+                    ).extension<StackColors>()!.textSubtitle1,
+                size: 20,
+              ),
+            ),
           ],
         );
       },

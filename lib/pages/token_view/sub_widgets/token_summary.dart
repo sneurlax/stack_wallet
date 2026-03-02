@@ -107,13 +107,18 @@ class TokenSummary extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    ref
-                        .watch(
-                          pAmountFormatter(
-                            Ethereum(CryptoCurrencyNetwork.main),
-                          ),
+                    ref.watch(
+                          prefsChangeNotifierProvider
+                              .select((value) => value.hideBalances),
                         )
-                        .format(balance.total, ethContract: token),
+                        ? "••••••"
+                        : ref
+                            .watch(
+                              pAmountFormatter(
+                                Ethereum(CryptoCurrencyNetwork.main),
+                              ),
+                            )
+                            .format(balance.total, ethContract: token),
                     style: STextStyles.pageTitleH1(context).copyWith(
                       color:
                           Theme.of(
@@ -132,7 +137,12 @@ class TokenSummary extends ConsumerWidget {
               if (price != null) const SizedBox(height: 6),
               if (price != null)
                 Text(
-                  "${(balance.total.decimal * price).toAmount(fractionDigits: 2).fiatString(locale: ref.watch(localeServiceChangeNotifierProvider.select((value) => value.locale)))} ${ref.watch(prefsChangeNotifierProvider.select((value) => value.currency))}",
+                  ref.watch(
+                        prefsChangeNotifierProvider
+                            .select((value) => value.hideBalances),
+                      )
+                      ? "••••••"
+                      : "${(balance.total.decimal * price).toAmount(fractionDigits: 2).fiatString(locale: ref.watch(localeServiceChangeNotifierProvider.select((value) => value.locale)))} ${ref.watch(prefsChangeNotifierProvider.select((value) => value.currency))}",
                   style: STextStyles.subtitle500(context).copyWith(
                     color:
                         Theme.of(

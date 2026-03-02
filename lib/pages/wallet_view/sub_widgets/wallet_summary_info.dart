@@ -207,7 +207,14 @@ class WalletSummaryInfo extends ConsumerWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: SelectableText(
-                    ref.watch(pAmountFormatter(coin)).format(balanceToShow),
+                    ref.watch(
+                          prefsChangeNotifierProvider
+                              .select((value) => value.hideBalances),
+                        )
+                        ? "••••••"
+                        : ref
+                            .watch(pAmountFormatter(coin))
+                            .format(balanceToShow),
                     style: STextStyles.pageTitleH1(context).copyWith(
                       fontSize: 24,
                       color:
@@ -219,7 +226,12 @@ class WalletSummaryInfo extends ConsumerWidget {
                 ),
                 if (price != null)
                   Text(
-                    "${(price.value * balanceToShow.decimal).toAmount(fractionDigits: 2).fiatString(locale: locale)} $baseCurrency",
+                    ref.watch(
+                          prefsChangeNotifierProvider
+                              .select((value) => value.hideBalances),
+                        )
+                        ? "••••••"
+                        : "${(price.value * balanceToShow.decimal).toAmount(fractionDigits: 2).fiatString(locale: locale)} $baseCurrency",
                     style: STextStyles.subtitle500(context).copyWith(
                       color:
                           Theme.of(
@@ -238,6 +250,26 @@ class WalletSummaryInfo extends ConsumerWidget {
                 height: 24,
               ),
               const Spacer(),
+              GestureDetector(
+                onTap: () {
+                  ref.read(prefsChangeNotifierProvider).hideBalances =
+                      !ref.read(prefsChangeNotifierProvider).hideBalances;
+                },
+                child: Icon(
+                  ref.watch(
+                        prefsChangeNotifierProvider
+                            .select((value) => value.hideBalances),
+                      )
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  color:
+                      Theme.of(
+                        context,
+                      ).extension<StackColors>()!.textFavoriteCard,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(height: 8),
               WalletRefreshButton(
                 walletId: walletId,
                 initialSyncStatus: initialSyncStatus,

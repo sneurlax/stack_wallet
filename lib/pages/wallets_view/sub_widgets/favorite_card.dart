@@ -236,13 +236,22 @@ class _FavoriteCardState extends ConsumerState<FavoriteCard> {
                         );
                       }
 
+                      final hideBalances = ref.watch(
+                        prefsChangeNotifierProvider
+                            .select((value) => value.hideBalances),
+                      );
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              ref.watch(pAmountFormatter(coin)).format(total),
+                              hideBalances
+                                  ? "••••••"
+                                  : ref
+                                      .watch(pAmountFormatter(coin))
+                                      .format(total),
                               style: STextStyles.titleBold12(context).copyWith(
                                 fontSize: 16,
                                 color:
@@ -256,7 +265,9 @@ class _FavoriteCardState extends ConsumerState<FavoriteCard> {
                             const SizedBox(height: 4),
                           if (externalCalls && price != null)
                             Text(
-                              "${fiatTotal.fiatString(locale: ref.watch(localeServiceChangeNotifierProvider.select((value) => value.locale)))} ${ref.watch(prefsChangeNotifierProvider.select((value) => value.currency))}",
+                              hideBalances
+                                  ? "••••••"
+                                  : "${fiatTotal.fiatString(locale: ref.watch(localeServiceChangeNotifierProvider.select((value) => value.locale)))} ${ref.watch(prefsChangeNotifierProvider.select((value) => value.currency))}",
                               style: STextStyles.itemSubtitle12(
                                 context,
                               ).copyWith(
