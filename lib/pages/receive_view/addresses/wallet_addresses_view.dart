@@ -8,6 +8,8 @@
  *
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar_community/isar.dart';
@@ -15,13 +17,19 @@ import 'package:tuple/tuple.dart';
 
 import '../../../db/isar/main_db.dart';
 import '../../../models/isar/models/isar_models.dart';
+import '../../../models/keys/view_only_wallet_data.dart';
+import '../../../providers/global/wallets_provider.dart';
 import '../../../themes/stack_colors.dart';
 import '../../../utilities/text_styles.dart';
 import '../../../utilities/util.dart';
 import '../../../wallets/isar/providers/wallet_info_provider.dart';
+import '../../../wallets/wallet/wallet_mixin_interfaces/multi_address_interface.dart';
+import '../../../wallets/wallet/wallet_mixin_interfaces/view_only_option_interface.dart';
 import '../../../widgets/background.dart';
 import '../../../widgets/conditional_parent.dart';
 import '../../../widgets/custom_buttons/app_bar_icon_button.dart';
+import '../../../widgets/custom_loading_overlay.dart';
+import '../../../widgets/desktop/secondary_button.dart';
 import '../../../widgets/loading_indicator.dart';
 import 'address_card.dart';
 import 'address_details_view.dart';
@@ -42,6 +50,48 @@ class _WalletAddressesViewState extends ConsumerState<WalletAddressesView> {
   final bool isDesktop = Util.isDesktop;
 
   final String _searchString = "";
+
+  /// Incremented to force the FutureBuilder to re-run after generating a new
+  /// address.
+  int _futureKey = 0;
+
+  Future<void> _generateNewAddress() async {
+    final wallet = ref.read(pWallets).getWallet(widget.walletId);
+
+    if (wallet is! MultiAddressInterface) return;
+
+    bool shouldPop = false;
+    unawaited(
+      showDialog(
+        context: context,
+        builder: (_) {
+          return WillPopScope(
+            onWillPop: () async => shouldPop,
+            child: Container(
+              color: Theme.of(
+                context,
+              ).extension<StackColors>()!.overlay.withOpacity(0.5),
+              child: const CustomLoadingOverlay(
+                message: "Generating address",
+                eventBus: null,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    await wallet.generateNewReceivingAddress();
+
+    shouldPop = true;
+
+    if (mounted) {
+      Navigator.of(context).pop();
+      setState(() {
+        _futureKey++;
+      });
+    }
+  }
 
   // late final TextEditingController _searchController;
   // final searchFieldFocusNode = FocusNode();
@@ -161,6 +211,19 @@ class _WalletAddressesViewState extends ConsumerState<WalletAddressesView> {
   Widget build(BuildContext context) {
     final coin = ref.watch(pWalletCoin(widget.walletId));
 
+    final wallet = ref.watch(
+      pWallets.select((value) => value.getWallet(widget.walletId)),
+    );
+
+    final bool canGen;
+    if (wallet is ViewOnlyOptionInterface &&
+        wallet.isViewOnly &&
+        wallet.viewOnlyType == ViewOnlyWalletType.addressOnly) {
+      canGen = false;
+    } else {
+      canGen = wallet is MultiAddressInterface;
+    }
+
     return ConditionalParent(
       condition: !isDesktop,
       builder:
@@ -258,8 +321,15 @@ class _WalletAddressesViewState extends ConsumerState<WalletAddressesView> {
             // SizedBox(
             //   height: isDesktop ? 20 : 16,
             // ),
+            if (canGen)
+              SecondaryButton(
+                label: "Generate new address",
+                onPressed: _generateNewAddress,
+              ),
+            if (canGen) const SizedBox(height: 12),
             Expanded(
               child: FutureBuilder(
+                key: ValueKey<int>(_futureKey),
                 future: _search(_searchString),
                 builder: (context, AsyncSnapshot<List<int>> snapshot) {
                   if (snapshot.connectionState == ConnectionState.done &&

@@ -8,20 +8,28 @@
  *
  */
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:isar_community/isar.dart';
 
 import '../../models/isar/models/isar_models.dart';
+import '../../models/keys/view_only_wallet_data.dart';
 import '../../pages/receive_view/addresses/address_details_view.dart';
 import '../../providers/db/main_db_provider.dart';
+import '../../providers/global/wallets_provider.dart';
 import '../../themes/stack_colors.dart';
 import '../../utilities/assets.dart';
 import '../../utilities/text_styles.dart';
+import '../../wallets/wallet/wallet_mixin_interfaces/multi_address_interface.dart';
+import '../../wallets/wallet/wallet_mixin_interfaces/view_only_option_interface.dart';
 import '../../widgets/custom_buttons/app_bar_icon_button.dart';
+import '../../widgets/custom_loading_overlay.dart';
 import '../../widgets/desktop/desktop_app_bar.dart';
 import '../../widgets/desktop/desktop_scaffold.dart';
+import '../../widgets/desktop/secondary_button.dart';
 import 'sub_widgets/desktop_address_list.dart';
 
 final desktopSelectedAddressId = StateProvider.autoDispose<Id?>((ref) => null);
@@ -44,6 +52,41 @@ class _DesktopWalletAddressesViewState
   static const _columnWidth0 = 489.0;
 
   Stream<void>? addressCollectionWatcher;
+
+  Future<void> _generateNewAddress() async {
+    final wallet = ref.read(pWallets).getWallet(widget.walletId);
+
+    if (wallet is! MultiAddressInterface) return;
+
+    bool shouldPop = false;
+    unawaited(
+      showDialog(
+        context: context,
+        builder: (_) {
+          return WillPopScope(
+            onWillPop: () async => shouldPop,
+            child: Container(
+              color: Theme.of(
+                context,
+              ).extension<StackColors>()!.overlay.withOpacity(0.5),
+              child: const CustomLoadingOverlay(
+                message: "Generating address",
+                eventBus: null,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    await wallet.generateNewReceivingAddress();
+
+    shouldPop = true;
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
 
   void _onAddressCollectionWatcherEvent() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -73,6 +116,19 @@ class _DesktopWalletAddressesViewState
 
   @override
   Widget build(BuildContext context) {
+    final wallet = ref.watch(
+      pWallets.select((value) => value.getWallet(widget.walletId)),
+    );
+
+    final bool canGen;
+    if (wallet is ViewOnlyOptionInterface &&
+        wallet.isViewOnly &&
+        wallet.viewOnlyType == ViewOnlyWalletType.addressOnly) {
+      canGen = false;
+    } else {
+      canGen = wallet is MultiAddressInterface;
+    }
+
     return DesktopScaffold(
       appBar: DesktopAppBar(
         background: Theme.of(context).extension<StackColors>()!.popupBG,
@@ -101,6 +157,16 @@ class _DesktopWalletAddressesViewState
               const SizedBox(width: 12),
               Text("Address list", style: STextStyles.desktopH3(context)),
               const Spacer(),
+              if (canGen)
+                SizedBox(
+                  width: 200,
+                  child: SecondaryButton(
+                    label: "Generate new address",
+                    buttonHeight: ButtonHeight.l,
+                    onPressed: _generateNewAddress,
+                  ),
+                ),
+              const SizedBox(width: 32),
             ],
           ),
         ),
