@@ -504,6 +504,10 @@ abstract class LibMoneroWallet<T extends CryptonoteCurrency>
 
   @override
   Future<void> updateNode() async {
+    if (wallet == null) {
+      return;
+    }
+
     final node = getCurrentNode();
 
     if (await _torNodeMismatchGuard(node)) {

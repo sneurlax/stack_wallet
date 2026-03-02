@@ -506,6 +506,10 @@ abstract class LibWowneroWallet<T extends CryptonoteCurrency>
 
   @override
   Future<void> updateNode() async {
+    if (wallet == null) {
+      return;
+    }
+
     final node = getCurrentNode();
 
     if (_torNodeMismatchGuard(node)) {
