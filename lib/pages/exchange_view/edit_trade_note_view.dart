@@ -104,6 +104,10 @@ class _EditNoteViewState extends ConsumerState<EditTradeNoteView> {
                                 autocorrect: Util.isDesktop ? false : true,
                                 enableSuggestions:
                                     Util.isDesktop ? false : true,
+                                minLines: 3,
+                                maxLines: 6,
+                                keyboardType: TextInputType.multiline,
+                                textInputAction: TextInputAction.newline,
                                 controller: _noteController,
                                 style: STextStyles.field(context),
                                 focusNode: noteFieldFocusNode,
