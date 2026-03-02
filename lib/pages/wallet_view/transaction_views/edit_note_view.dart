@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/isar/models/transaction_note.dart';
 import '../../../providers/providers.dart';
+import '../../../services/auto_swb_service.dart';
 import '../../../themes/stack_colors.dart';
 import '../../../utilities/constants.dart';
 import '../../../utilities/text_styles.dart';
@@ -198,6 +199,10 @@ class _EditNoteViewState extends ConsumerState<EditNoteView> {
                                 ),
                           );
 
+                      AutoSWBService.requestBackupAfterChange(
+                        ref.read(prefsChangeNotifierProvider),
+                      );
+
                       if (mounted) {
                         Navigator.of(context).pop();
                       }
@@ -217,6 +222,11 @@ class _EditNoteViewState extends ConsumerState<EditNoteView> {
                                 value: _noteController.text,
                               ),
                         );
+
+                    AutoSWBService.requestBackupAfterChange(
+                      ref.read(prefsChangeNotifierProvider),
+                    );
+
                     if (mounted) {
                       Navigator.of(context).pop();
                     }

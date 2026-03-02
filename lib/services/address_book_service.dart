@@ -12,6 +12,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import '../db/isar/main_db.dart';
 import '../models/isar/models/contact_entry.dart';
+import '../utilities/prefs.dart';
+import 'auto_swb_service.dart';
 
 class AddressBookService extends ChangeNotifier {
   ContactEntry getContactById(String id) {
@@ -66,6 +68,7 @@ class AddressBookService extends ChangeNotifier {
     } else {
       await MainDB.instance.putContactEntry(contactEntry: contact);
       notifyListeners();
+      AutoSWBService.requestBackupAfterChange(Prefs.instance);
       return true;
     }
   }
@@ -75,6 +78,7 @@ class AddressBookService extends ChangeNotifier {
     // over write the contact with edited version
     await MainDB.instance.putContactEntry(contactEntry: editedContact);
     notifyListeners();
+    AutoSWBService.requestBackupAfterChange(Prefs.instance);
     return true;
   }
 
@@ -82,5 +86,6 @@ class AddressBookService extends ChangeNotifier {
   Future<void> removeContact(String id) async {
     await MainDB.instance.deleteContactEntry(id: id);
     notifyListeners();
+    AutoSWBService.requestBackupAfterChange(Prefs.instance);
   }
 }

@@ -498,6 +498,9 @@ class _MaterialAppWithThemeState extends ConsumerState<MaterialAppWithTheme>
           case BackupFrequencyType.afterClosingAWallet:
             // ignore this case here
             break;
+          case BackupFrequencyType.afterChanges:
+            // handled by note and address book edit events
+            break;
         }
       }
 

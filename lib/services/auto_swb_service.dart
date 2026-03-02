@@ -16,6 +16,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tuple/tuple.dart';
 
 import '../pages/settings_views/global_settings_view/stack_backup_views/helpers/restore_create_backup.dart';
+import '../utilities/enums/backup_frequency_type.dart';
 import '../utilities/flutter_secure_storage_interface.dart';
 import '../utilities/fs.dart';
 import '../utilities/logger.dart';
@@ -24,7 +25,12 @@ import '../utilities/prefs.dart';
 enum AutoSWBStatus { idle, backingUp, error }
 
 class AutoSWBService extends ChangeNotifier {
+  /// Static instance reference set by the provider layer so that non-widget
+  /// code (e.g. `Wallet`) can request a backup without Riverpod access.
+  static AutoSWBService? instance;
+
   Timer? _timer;
+  Timer? _debounceTimer;
 
   AutoSWBStatus _status = AutoSWBStatus.idle;
   AutoSWBStatus get status => _status;
@@ -35,6 +41,36 @@ class AutoSWBService extends ChangeNotifier {
   final SecureStorageInterface secureStorageInterface;
 
   AutoSWBService({required this.secureStorageInterface});
+
+  /// Convenience method to request a backup after an editable change such as
+  /// a transaction note or address book contact edit. Only triggers if
+  /// auto-backup is enabled and the frequency is set to
+  /// [BackupFrequencyType.afterChanges].
+  static void requestBackupAfterChange(Prefs prefs) {
+    if (instance == null) return;
+    if (!prefs.isAutoBackupEnabled) return;
+    if (prefs.backupFrequencyType != BackupFrequencyType.afterChanges) return;
+
+    Logging.instance.d(
+      "AutoSWBService.requestBackupAfterChange() triggered",
+    );
+    instance!.requestBackup();
+  }
+
+  /// Request a debounced backup. Multiple calls within [debounceDuration]
+  /// will be collapsed into a single backup. This prevents backup storms
+  /// during wallet sync or rapid changes.
+  void requestBackup({
+    Duration debounceDuration = const Duration(seconds: 5),
+  }) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(debounceDuration, () {
+      Logging.instance.d(
+        "AutoSWBService.requestBackup() debounce fired, running doBackup()",
+      );
+      doBackup();
+    });
+  }
 
   /// Attempt a backup.
   Future<void> doBackup() async {
@@ -199,6 +235,8 @@ class AutoSWBService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
     stopPeriodicBackupTimer(shouldNotifyListeners: false);
     super.dispose();
   }
