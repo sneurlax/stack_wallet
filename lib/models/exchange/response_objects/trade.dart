@@ -282,6 +282,30 @@ class Trade {
     );
   }
 
+  /// Statuses that indicate a trade has reached an end state and is no longer
+  /// expected to change. Trades in one of these states can be safely deleted.
+  static const Set<String> terminalStatuses = {
+    "Finished",
+    "finished",
+    "completed",
+    "Completed",
+    "Failed",
+    "failed",
+    "Refunded",
+    "refunded",
+    "Expired",
+    "expired",
+    "Closed",
+    "closed",
+  };
+
+  /// Whether this trade has reached a terminal (finished/expired/etc) state.
+  bool get isTerminalStatus => terminalStatuses.contains(status);
+
+  /// Whether this trade is still in progress (waiting, new, processing, etc).
+  /// These trades can still be deleted but only behind a stronger warning.
+  bool get isInProgress => !isTerminalStatus;
+
   @override
   String toString() {
     return toMap().toString();

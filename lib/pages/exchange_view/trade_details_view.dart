@@ -50,6 +50,7 @@ import '../../widgets/conditional_parent.dart';
 import '../../widgets/custom_buttons/app_bar_icon_button.dart';
 import '../../widgets/custom_buttons/blue_text_button.dart';
 import '../../widgets/desktop/desktop_dialog.dart';
+import '../../widgets/desktop/primary_button.dart';
 import '../../widgets/desktop/secondary_button.dart';
 import '../../widgets/qr.dart';
 import '../../widgets/rounded_container.dart';
@@ -212,6 +213,131 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
             trade.status == "wait" ||
             trade.status == "Waiting");
 
+    final isTerminalStatus = trade.isTerminalStatus;
+
+    void deleteTrade() {
+      if (isDesktop) {
+        showDialog<void>(
+          context: context,
+          builder: (_) => DesktopDialog(
+            maxWidth: 450,
+            maxHeight: 300,
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Text(
+                    isTerminalStatus
+                        ? "Delete this trade?"
+                        : "Delete an active trade?",
+                    style: STextStyles.desktopH3(context),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    isTerminalStatus
+                        ? "Trade will be deleted permanently!"
+                        : "This trade is still active and has not finished. "
+                              "Deleting it will permanently remove it from your "
+                              "device and you will no longer be able to track "
+                              "its status. Proceed only if you know what you "
+                              "are doing.",
+                    style: STextStyles.desktopTextSmall(context),
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SecondaryButton(
+                          label: "Cancel",
+                          buttonHeight: ButtonHeight.l,
+                          onPressed: Navigator.of(context).pop,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: PrimaryButton(
+                          label: "Delete",
+                          buttonHeight: ButtonHeight.l,
+                          onPressed: () async {
+                            await ref
+                                .read(tradesServiceProvider)
+                                .delete(
+                                  trade: trade,
+                                  shouldNotifyListeners: true,
+                                );
+                            if (context.mounted) {
+                              Navigator.of(
+                                context,
+                              ).pop(); // close confirm dialog
+                              Navigator.of(
+                                context,
+                                rootNavigator: true,
+                              ).pop(); // close trade details dialog
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+      showDialog<dynamic>(
+        context: context,
+        useSafeArea: true,
+        barrierDismissible: true,
+        builder: (_) => StackDialog(
+          title: isTerminalStatus
+              ? "Delete this trade?"
+              : "Delete an active trade?",
+          message: isTerminalStatus
+              ? "Trade will be deleted permanently!"
+              : "This trade is still active and has not finished. "
+                    "Deleting it will permanently remove it from your "
+                    "device and you will no longer be able to track its "
+                    "status. Proceed only if you know what you are doing.",
+          leftButton: TextButton(
+            style: Theme.of(context)
+                .extension<StackColors>()!
+                .getSecondaryEnabledButtonStyle(context),
+            child: Text(
+              "Cancel",
+              style: STextStyles.itemSubtitle12(context),
+            ),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          rightButton: TextButton(
+            style: Theme.of(context)
+                .extension<StackColors>()!
+                .getPrimaryEnabledButtonStyle(context),
+            child: Text("Delete", style: STextStyles.button(context)),
+            onPressed: () async {
+              await ref
+                  .read(tradesServiceProvider)
+                  .delete(trade: trade, shouldNotifyListeners: true);
+              if (context.mounted) {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+                unawaited(
+                  showFloatingFlushBar(
+                    type: FlushBarType.success,
+                    message: "Trade deleted",
+                    context: context,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    }
+
     return ConditionalParent(
       condition: !isDesktop,
       builder: (child) => Background(
@@ -232,6 +358,31 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
               "Trade details",
               style: STextStyles.navBarTitle(context),
             ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 10, right: 10),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: AppBarIconButton(
+                    key: const Key("tradeDetailsViewDeleteTradeButtonKey"),
+                    size: 36,
+                    shadows: const [],
+                    color: Theme.of(
+                      context,
+                    ).extension<StackColors>()!.background,
+                    icon: SvgPicture.asset(
+                      Assets.svg.trash,
+                      color: Theme.of(
+                        context,
+                      ).extension<StackColors>()!.accentColorDark,
+                      width: 20,
+                      height: 20,
+                    ),
+                    onPressed: deleteTrade,
+                  ),
+                ),
+              ),
+            ],
           ),
           body: SafeArea(
             child: Padding(
@@ -295,6 +446,12 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
                         );
                       },
                     ),
+                  const SizedBox(height: 16),
+                  SecondaryButton(
+                    label: "Delete trade",
+                    buttonHeight: ButtonHeight.l,
+                    onPressed: deleteTrade,
+                  ),
                   const SizedBox(height: 32),
                 ],
               ),
