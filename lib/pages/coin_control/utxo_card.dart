@@ -110,6 +110,16 @@ class _UtxoCardState extends ConsumerState<UtxoCard> {
             if (snapshot.hasData) {
               utxo = snapshot.data!;
             }
+            final AddressLabel? addressLabel;
+            if (utxo.address != null) {
+              addressLabel = MainDB.instance.getAddressLabelSync(
+                widget.walletId,
+                utxo.address!,
+              );
+            } else {
+              addressLabel = null;
+            }
+
             return Row(
               children: [
                 ConditionalParent(
@@ -179,6 +189,23 @@ class _UtxoCardState extends ConsumerState<UtxoCard> {
                           ),
                         ],
                       ),
+                      if (addressLabel != null &&
+                          addressLabel.value.isNotEmpty)
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                addressLabel.value,
+                                style:
+                                    STextStyles.w500_12(context).copyWith(
+                                  color: Theme.of(context)
+                                      .extension<StackColors>()!
+                                      .textSubtitle1,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
