@@ -24,6 +24,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 import 'package:logger/logger.dart';
 import 'package:mobile_app_privacy/mobile_app_privacy.dart';
+import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:window_size/window_size.dart';
 
@@ -98,6 +99,44 @@ void main(List<String> args) async {
 
   if (Util.isDesktop && args.length == 2 && args.first == "-d") {
     StackFileSystem.setDesktopOverrideDir(args.last);
+  } else if (Platform.isLinux) {
+    // Flatpak detection: use XDG_DATA_HOME instead of ~/.stackwallet.
+    final flatpakId = Platform.environment['FLATPAK_ID'];
+    if (flatpakId != null || File('/.flatpak-info').existsSync()) {
+      // Resolve the persistent data root. Prefer XDG_DATA_HOME when set.
+      // Otherwise fall back to $HOME/.local/share, but only if HOME is
+      // available. If neither is set we leave the data dir unchanged and
+      // let StackFileSystem use its default, rather than crashing.
+      final home = Platform.environment['HOME'];
+      final xdgDataHome = Platform.environment['XDG_DATA_HOME'] ??
+          (home != null ? path.join(home, '.local', 'share') : null);
+
+      if (xdgDataHome != null) {
+        final flatpakDataDir =
+            path.join(xdgDataHome, AppConfig.appDefaultDataDirName);
+
+        // Migration: move legacy data from $HOME/.stackwallet into the new
+        // location, but only when the legacy dir exists and the new one does
+        // not. Best-effort: never crash if the move fails.
+        if (home != null) {
+          final legacyDir = Directory(
+            path.join(home, '.${AppConfig.appDefaultDataDirName}'),
+          );
+          final newDir = Directory(flatpakDataDir);
+          if (legacyDir.existsSync() && !newDir.existsSync()) {
+            try {
+              await Directory(xdgDataHome).create(recursive: true);
+              await legacyDir.rename(newDir.path);
+            } catch (_) {
+              // If rename fails (e.g. different filesystem), fall back to
+              // using the new path anyway. The user can manually move data.
+            }
+          }
+        }
+
+        StackFileSystem.setDesktopOverrideDir(flatpakDataDir);
+      }
+    }
   }
 
   final loadCoinlibFuture = loadCoinlib();

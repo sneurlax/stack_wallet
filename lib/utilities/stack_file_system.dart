@@ -213,23 +213,32 @@ abstract class StackFileSystem {
       }
     }
 
-    final appDocsDir = await getApplicationDocumentsDirectory();
-    const logsDirName = "${AppConfig.prefix}_Logs";
     final Directory logsDir;
 
-    if (Platform.isIOS) {
-      logsDir = Directory(path.join(appDocsDir.path, "logs"));
-    } else if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
-      // TODO check this is correct for macos
-      logsDir = Directory(path.join(appDocsDir.path, logsDirName));
-    } else if (Platform.isAndroid) {
-      // final dir = await wtfAndroidDocumentsPath();
-      // final logsDirPath = path.join(dir.path, logsDirName);
-      // logsDir = Directory(logsDirPath);
-
-      logsDir = Directory(path.join(appDocsDir.path, "logs"));
+    // When a desktop override dir is set (e.g. the Flatpak XDG_DATA_HOME
+    // location or the -d launch flag) keep logs under that persistent root
+    // so they follow the data directory rather than landing in the
+    // application documents directory.
+    if (_overrideDesktopDirPath != null) {
+      logsDir = Directory(path.join(_overrideDesktopDirPath!, "logs"));
     } else {
-      throw Exception("Unsupported Platform");
+      final appDocsDir = await getApplicationDocumentsDirectory();
+      const logsDirName = "${AppConfig.prefix}_Logs";
+
+      if (Platform.isIOS) {
+        logsDir = Directory(path.join(appDocsDir.path, "logs"));
+      } else if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
+        // TODO check this is correct for macos
+        logsDir = Directory(path.join(appDocsDir.path, logsDirName));
+      } else if (Platform.isAndroid) {
+        // final dir = await wtfAndroidDocumentsPath();
+        // final logsDirPath = path.join(dir.path, logsDirName);
+        // logsDir = Directory(logsDirPath);
+
+        logsDir = Directory(path.join(appDocsDir.path, "logs"));
+      } else {
+        throw Exception("Unsupported Platform");
+      }
     }
 
     if (!logsDir.existsSync()) {
