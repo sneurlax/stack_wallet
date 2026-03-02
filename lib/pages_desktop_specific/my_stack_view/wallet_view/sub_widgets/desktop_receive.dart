@@ -18,6 +18,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:isar_community/isar.dart';
 import 'package:tuple/tuple.dart';
 
+import '../../../../db/isar/main_db.dart';
 import '../../../../models/isar/models/isar_models.dart';
 import '../../../../models/keys/view_only_wallet_data.dart';
 import '../../../../notifications/show_flush_bar.dart';
@@ -51,6 +52,7 @@ import '../../../../wallets/wallet/wallet_mixin_interfaces/spark_interface.dart'
 import '../../../../wallets/wallet/wallet_mixin_interfaces/view_only_option_interface.dart';
 import '../../../../widgets/conditional_parent.dart';
 import '../../../../widgets/custom_buttons/app_bar_icon_button.dart';
+import '../../../../widgets/custom_buttons/simple_edit_button.dart';
 import '../../../../widgets/custom_loading_overlay.dart';
 import '../../../../widgets/desktop/desktop_dialog.dart';
 import '../../../../widgets/desktop/primary_button.dart';
@@ -761,6 +763,76 @@ class _DesktopReceiveState extends ConsumerState<DesktopReceive> {
               ),
             ),
           ),
+
+        const SizedBox(height: 12),
+        Builder(
+          builder: (context) {
+            final label = MainDB.instance.getAddressLabelSync(
+              walletId,
+              address,
+            );
+            final labelValue = label?.value ?? "";
+            return Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(
+                    context,
+                  ).extension<StackColors>()!.backgroundAppBar,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(
+                  Constants.size.circularBorderRadius,
+                ),
+              ),
+              child: RoundedWhiteContainer(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        labelValue.isNotEmpty ? labelValue : "No label",
+                        style: STextStyles.desktopTextExtraExtraSmall(
+                          context,
+                        ).copyWith(
+                          color: Theme.of(
+                            context,
+                          ).extension<StackColors>()!.textDark,
+                        ),
+                      ),
+                    ),
+                    SimpleEditButton(
+                      editValue: labelValue,
+                      editLabel: "label",
+                      overrideTitle: "Edit label",
+                      onValueChanged: (value) {
+                        final existingLabel =
+                            MainDB.instance.getAddressLabelSync(
+                              walletId,
+                              address,
+                            );
+                        if (existingLabel != null) {
+                          MainDB.instance.putAddressLabel(
+                            existingLabel.copyWith(label: value),
+                          );
+                        } else {
+                          MainDB.instance.putAddressLabel(
+                            AddressLabel(
+                              walletId: walletId,
+                              addressString: address,
+                              value: value,
+                              tags: null,
+                            ),
+                          );
+                        }
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
 
         if (canGen) const SizedBox(height: 20),
 

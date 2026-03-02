@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:isar_community/isar.dart';
 
+import '../../db/isar/main_db.dart';
 import '../../models/isar/models/isar_models.dart';
 import '../../models/keys/view_only_wallet_data.dart';
 import '../../notifications/show_flush_bar.dart';
@@ -46,6 +47,7 @@ import '../../widgets/background.dart';
 import '../../widgets/conditional_parent.dart';
 import '../../widgets/custom_buttons/app_bar_icon_button.dart';
 import '../../widgets/custom_buttons/blue_text_button.dart';
+import '../../widgets/custom_buttons/simple_edit_button.dart';
 import '../../widgets/custom_loading_overlay.dart';
 import '../../widgets/desktop/primary_button.dart';
 import '../../widgets/desktop/secondary_button.dart';
@@ -790,6 +792,58 @@ class _ReceiveViewState extends ConsumerState<ReceiveView> {
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    Builder(
+                      builder: (context) {
+                        final label = MainDB.instance.getAddressLabelSync(
+                          walletId,
+                          address,
+                        );
+                        final labelValue = label?.value ?? "";
+                        return RoundedWhiteContainer(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  labelValue.isNotEmpty
+                                      ? labelValue
+                                      : "No label",
+                                  style: STextStyles.itemSubtitle(context),
+                                ),
+                              ),
+                              SimpleEditButton(
+                                editValue: labelValue,
+                                editLabel: "label",
+                                overrideTitle: "Edit label",
+                                onValueChanged: (value) {
+                                  final existingLabel =
+                                      MainDB.instance.getAddressLabelSync(
+                                        walletId,
+                                        address,
+                                      );
+                                  if (existingLabel != null) {
+                                    MainDB.instance.putAddressLabel(
+                                      existingLabel.copyWith(label: value),
+                                    );
+                                  } else {
+                                    MainDB.instance.putAddressLabel(
+                                      AddressLabel(
+                                        walletId: walletId,
+                                        addressString: address,
+                                        value: value,
+                                        tags: null,
+                                      ),
+                                    );
+                                  }
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                     PrimaryButton(
