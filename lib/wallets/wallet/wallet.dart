@@ -6,6 +6,8 @@ import 'package:mutex/mutex.dart';
 
 import '../../db/isar/main_db.dart';
 import '../../models/isar/models/blockchain_data/address.dart';
+import '../../models/isar/models/blockchain_data/transaction.dart';
+import '../../models/isar/models/blockchain_data/v2/transaction_v2.dart';
 import '../../models/isar/models/ethereum/eth_contract.dart';
 import '../../models/keys/view_only_wallet_data.dart';
 import '../../models/node_model.dart';
@@ -15,6 +17,8 @@ import '../../services/event_bus/events/global/refresh_percent_changed_event.dar
 import '../../services/event_bus/events/global/wallet_sync_status_changed_event.dart';
 import '../../services/event_bus/global_event_bus.dart';
 import '../../services/node_service.dart';
+import '../../services/transaction_notification_tracker.dart';
+import '../../widgets/crypto_notifications.dart';
 import '../../utilities/amount/amount.dart';
 import '../../utilities/constants.dart';
 import '../../utilities/enums/sync_type_enum.dart';
@@ -683,6 +687,14 @@ abstract class Wallet<T extends CryptoCurrency> {
         await (this as SparkInterface).refreshSparkData((0.3, 0.6));
       }
 
+      // Capture known transaction IDs before updating so we can detect new ones.
+      final knownTxids = await mainDB.isar.transactionV2s
+          .where()
+          .walletIdEqualTo(walletId)
+          .txidProperty()
+          .findAll();
+      final knownTxidSet = knownTxids.toSet();
+
       if (this is NamecoinWallet) {
         await updateUTXOs();
         _fireRefreshPercentChange(0.6);
@@ -697,6 +709,53 @@ abstract class Wallet<T extends CryptoCurrency> {
         await utxosRefreshFuture;
         _fireRefreshPercentChange(0.70);
         await fetchFuture;
+      }
+
+      // Check for new incoming transactions and fire notification events.
+      try {
+        final tracker = TransactionNotificationTracker(walletId: walletId);
+        final allTxs = await mainDB.isar.transactionV2s
+            .where()
+            .walletIdEqualTo(walletId)
+            .findAll();
+
+        for (final tx in allTxs) {
+          if (!knownTxidSet.contains(tx.txid) &&
+              tx.type == TransactionType.incoming &&
+              !tracker.wasNotifiedPending(tx.txid)) {
+            final amount = tx.getAmountReceivedInThisWallet(
+              fractionDigits: cryptoCurrency.fractionDigits,
+            );
+
+            CryptoNotificationsEventBus.instance.fire(
+              CryptoNotificationEvent(
+                title: "Incoming ${cryptoCurrency.prettyName} transaction",
+                walletId: walletId,
+                walletName: info.name,
+                date: DateTime.fromMillisecondsSinceEpoch(
+                  tx.timestamp * 1000,
+                ),
+                shouldWatchForUpdates: tx.height == null || tx.height! <= 0,
+                coin: cryptoCurrency,
+                txid: tx.txid,
+                confirmations: tx.getConfirmations(info.cachedChainHeight),
+                requiredConfirmations:
+                    cryptoCurrency.minConfirms,
+                payload: "${amount.decimal.toStringAsFixed(
+                  cryptoCurrency.fractionDigits,
+                )} ${cryptoCurrency.ticker}",
+              ),
+            );
+
+            await tracker.addNotifiedPending(tx.txid);
+          }
+        }
+      } catch (e, s) {
+        Logging.instance.w(
+          "Transaction notification check failed: $e",
+          error: e,
+          stackTrace: s,
+        );
       }
 
       // TODO: [prio=low] handle this differently. Extra modification of this file for coin specific functionality should be avoided.
