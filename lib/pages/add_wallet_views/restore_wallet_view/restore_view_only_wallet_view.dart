@@ -49,6 +49,8 @@ class RestoreViewOnlyWalletView extends ConsumerStatefulWidget {
     required this.coin,
     required this.restoreBlockHeight,
     this.clipboard = const ClipboardWrapper(),
+    this.initialAddress,
+    this.initialViewKey,
   });
 
   static const routeName = "/restoreViewOnlyWallet";
@@ -57,6 +59,13 @@ class RestoreViewOnlyWalletView extends ConsumerStatefulWidget {
   final CryptoCurrency coin;
   final int restoreBlockHeight;
   final ClipboardInterface clipboard;
+
+  /// Optional pre-populated address (e.g. from a monero_wallet: URI scan).
+  final String? initialAddress;
+
+  /// Optional pre-populated private view key
+  /// (e.g. from a monero_wallet: URI scan).
+  final String? initialViewKey;
 
   @override
   ConsumerState<RestoreViewOnlyWalletView> createState() =>
@@ -325,6 +334,20 @@ class _RestoreViewOnlyWalletViewState
       _walletType = ViewOnlyWalletType.xPub;
     } else if (widget.coin is CryptonoteCurrency) {
       _walletType = ViewOnlyWalletType.cryptonote;
+    }
+
+    // Pre-populate fields if initial values are provided (e.g. from a
+    // monero_wallet: URI scan).
+    if (widget.initialAddress != null) {
+      addressController.text = widget.initialAddress!;
+    }
+    if (widget.initialViewKey != null) {
+      viewKeyController.text = widget.initialViewKey!;
+    }
+    if (widget.initialAddress != null || widget.initialViewKey != null) {
+      _enableRestoreButton =
+          addressController.text.isNotEmpty &&
+          viewKeyController.text.isNotEmpty;
     }
   }
 

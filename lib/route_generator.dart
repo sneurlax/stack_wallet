@@ -1641,6 +1641,28 @@ class RouteGenerator {
         return _routeError("${settings.name} invalid args: ${args.toString()}");
 
       case RestoreWalletView.routeName:
+        if (args
+            is ({
+              String walletName,
+              CryptoCurrency coin,
+              int seedWordsLength,
+              int restoreBlockHeight,
+              String mnemonicPassphrase,
+              List<String>? initialMnemonic,
+            })) {
+          return getRoute(
+            shouldUseMaterialRoute: useMaterialPageRoute,
+            builder: (_) => RestoreWalletView(
+              walletName: args.walletName,
+              coin: args.coin,
+              seedWordsLength: args.seedWordsLength,
+              restoreBlockHeight: args.restoreBlockHeight,
+              mnemonicPassphrase: args.mnemonicPassphrase,
+              initialMnemonic: args.initialMnemonic,
+            ),
+            settings: RouteSettings(name: settings.name),
+          );
+        }
         if (args is Tuple5<String, CryptoCurrency, int, int, String>) {
           return getRoute(
             shouldUseMaterialRoute: useMaterialPageRoute,
@@ -1657,6 +1679,26 @@ class RouteGenerator {
         return _routeError("${settings.name} invalid args: ${args.toString()}");
 
       case RestoreViewOnlyWalletView.routeName:
+        if (args
+            is ({
+              String walletName,
+              CryptoCurrency coin,
+              int restoreBlockHeight,
+              String? initialAddress,
+              String? initialViewKey,
+            })) {
+          return getRoute(
+            shouldUseMaterialRoute: useMaterialPageRoute,
+            builder: (_) => RestoreViewOnlyWalletView(
+              walletName: args.walletName,
+              coin: args.coin,
+              restoreBlockHeight: args.restoreBlockHeight,
+              initialAddress: args.initialAddress,
+              initialViewKey: args.initialViewKey,
+            ),
+            settings: RouteSettings(name: settings.name),
+          );
+        }
         if (args
             is ({
               String walletName,

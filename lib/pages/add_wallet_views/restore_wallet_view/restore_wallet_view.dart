@@ -32,6 +32,7 @@ import '../../../themes/stack_colors.dart';
 import '../../../utilities/address_utils.dart';
 import '../../../utilities/assets.dart';
 import '../../../utilities/barcode_scanner_interface.dart';
+import '../../../utilities/monero_wallet_uri.dart';
 import '../../../utilities/clipboard_interface.dart';
 import '../../../utilities/constants.dart';
 import '../../../utilities/custom_text_selection_controls.dart';
@@ -68,6 +69,7 @@ import '../add_token_view/edit_wallet_tokens_view.dart';
 import '../select_wallet_for_token_view.dart';
 import '../verify_recovery_phrase_view/verify_recovery_phrase_view.dart';
 import 'confirm_recovery_dialog.dart';
+import 'restore_view_only_wallet_view.dart';
 import 'sub_widgets/restore_failed_dialog.dart';
 import 'sub_widgets/restore_succeeded_dialog.dart';
 import 'sub_widgets/restoring_dialog.dart';
@@ -81,6 +83,7 @@ class RestoreWalletView extends ConsumerStatefulWidget {
     required this.mnemonicPassphrase,
     required this.restoreBlockHeight,
     this.clipboard = const ClipboardWrapper(),
+    this.initialMnemonic,
   });
 
   static const routeName = "/restoreWallet";
@@ -92,6 +95,10 @@ class RestoreWalletView extends ConsumerStatefulWidget {
   final int restoreBlockHeight;
 
   final ClipboardInterface clipboard;
+
+  /// Optional pre-populated mnemonic words
+  /// (e.g. from a monero_wallet: URI scan).
+  final List<String>? initialMnemonic;
 
   @override
   ConsumerState<RestoreWalletView> createState() => _RestoreWalletViewState();
@@ -161,6 +168,15 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
       _controllers.add(TextEditingController());
       _inputStatuses.add(FormInputStatus.empty);
       // _focusNodes.add(FocusNode());
+    }
+
+    // Pre-populate mnemonic words if provided (e.g. from a
+    // monero_wallet: URI scan).
+    if (widget.initialMnemonic != null &&
+        widget.initialMnemonic!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _clearAndPopulateMnemonic(widget.initialMnemonic!);
+      });
     }
 
     super.initState();
@@ -613,7 +629,49 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
     try {
       final qrResult = await ref.read(pBarcodeScanner).scan(context: context);
 
-      final results = AddressUtils.decodeQRSeedData(qrResult.rawContent ?? "");
+      final rawContent = qrResult.rawContent ?? "";
+
+      // Try parsing as a monero_wallet: URI first (for Monero/Wownero coins).
+      if (widget.coin is Monero || widget.coin is Wownero) {
+        final walletUri = MoneroWalletUriData.parse(rawContent);
+        if (walletUri != null) {
+          if (walletUri.isSeedRestore) {
+            final words = walletUri.seed!.split(' ');
+            if (words.isNotEmpty) {
+              _clearAndPopulateMnemonic(words);
+              Logging.instance.i(
+                "mnemonic populated from monero_wallet: URI",
+              );
+            }
+            return;
+          } else if (walletUri.isViewKeyRestore) {
+            if (mounted) {
+              unawaited(
+                showFloatingFlushBar(
+                  type: FlushBarType.info,
+                  message:
+                      "View-key wallet URI detected. Opening view-only restore.",
+                  context: context,
+                ),
+              );
+              await Navigator.of(context).pushNamed(
+                RestoreViewOnlyWalletView.routeName,
+                arguments: (
+                  walletName: widget.walletName,
+                  coin: widget.coin,
+                  restoreBlockHeight: walletUri.height ?? 0,
+                  initialAddress: walletUri.address,
+                  initialViewKey: walletUri.privateViewKey,
+                ),
+              );
+            }
+            return;
+          }
+        }
+      }
+
+      // Fall back to the existing JSON-encoded mnemonic QR format.
+      final results = AddressUtils.decodeQRSeedData(rawContent);
 
       if (results["mnemonic"] != null) {
         final list = (results["mnemonic"] as List)

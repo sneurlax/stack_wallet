@@ -8,6 +8,8 @@
  *
  */
 
+import 'dart:async';
+
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,13 +18,17 @@ import 'package:flutter_svg/svg.dart';
 import 'package:logger/logger.dart';
 import 'package:tuple/tuple.dart';
 
+import '../../../../notifications/show_flush_bar.dart';
 import '../../../../pages_desktop_specific/my_stack_view/exit_to_my_stack_button.dart';
+import '../../../../providers/providers.dart';
 import '../../../../providers/ui/verify_recovery_phrase/mnemonic_word_count_state_provider.dart';
 import '../../../../themes/stack_colors.dart';
 import '../../../../utilities/assets.dart';
+import '../../../../utilities/barcode_scanner_interface.dart';
 import '../../../../utilities/constants.dart';
 import '../../../../utilities/format.dart';
 import '../../../../utilities/logger.dart';
+import '../../../../utilities/monero_wallet_uri.dart';
 import '../../../../utilities/text_styles.dart';
 import '../../../../utilities/util.dart';
 import '../../../../wallets/crypto_currency/crypto_currency.dart';
@@ -34,6 +40,7 @@ import '../../../../widgets/custom_buttons/blue_text_button.dart';
 import '../../../../widgets/date_picker/date_picker.dart';
 import '../../../../widgets/desktop/desktop_app_bar.dart';
 import '../../../../widgets/desktop/desktop_scaffold.dart';
+import '../../../../widgets/desktop/secondary_button.dart';
 import '../../../../widgets/expandable.dart';
 import '../../../../widgets/icon_widgets/x_icon.dart';
 import '../../../../widgets/rounded_white_container.dart';
@@ -167,6 +174,79 @@ class _RestoreOptionsViewState extends ConsumerState<RestoreOptionsView> {
       }
     } finally {
       _nextLock = false;
+    }
+  }
+
+  /// Scan a monero_wallet: QR code and route to the appropriate restore view.
+  Future<void> _scanWalletUri() async {
+    try {
+      final qrResult = await ref.read(pBarcodeScanner).scan(context: context);
+      final rawContent = qrResult.rawContent ?? "";
+
+      final walletUri = MoneroWalletUriData.parse(rawContent);
+      if (walletUri == null) {
+        if (mounted) {
+          unawaited(
+            showFloatingFlushBar(
+              type: FlushBarType.warning,
+              message: "Not a valid monero_wallet: URI",
+              context: context,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (walletUri.isSeedRestore) {
+        if (mounted) {
+          final words = walletUri.seed!.split(' ');
+          await Navigator.of(context).pushNamed(
+            RestoreWalletView.routeName,
+            arguments: (
+              walletName: walletName,
+              coin: coin,
+              seedWordsLength: words.length,
+              restoreBlockHeight: walletUri.height ?? 0,
+              mnemonicPassphrase: "",
+              initialMnemonic: words,
+            ),
+          );
+        }
+      } else if (walletUri.isViewKeyRestore) {
+        if (mounted) {
+          await Navigator.of(context).pushNamed(
+            RestoreViewOnlyWalletView.routeName,
+            arguments: (
+              walletName: walletName,
+              coin: coin,
+              restoreBlockHeight: walletUri.height ?? 0,
+              initialAddress: walletUri.address,
+              initialViewKey: walletUri.privateViewKey,
+            ),
+          );
+        }
+      }
+    } on PlatformException catch (e, s) {
+      if (mounted) {
+        try {
+          await checkCamPermDeniedMobileAndOpenAppSettings(
+            context,
+            logging: Logging.instance,
+          );
+        } catch (e, s) {
+          Logging.instance.e(
+            "Failed to check cam permissions",
+            error: e,
+            stackTrace: s,
+          );
+        }
+      } else {
+        Logging.instance.e(
+          "Wallet URI qr scan failed: $e",
+          error: e,
+          stackTrace: s,
+        );
+      }
     }
   }
 
@@ -355,6 +435,17 @@ class _RestoreOptionsViewState extends ConsumerState<RestoreOptionsView> {
                       chooseMnemonicLength: chooseMnemonicLength,
                     ),
               if (!isDesktop) const Spacer(flex: 3),
+              if (coin is Monero || coin is Wownero)
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: isDesktop ? 16 : 8,
+                    bottom: isDesktop ? 16 : 8,
+                  ),
+                  child: SecondaryButton(
+                    label: "Scan wallet URI",
+                    onPressed: _scanWalletUri,
+                  ),
+                ),
               SizedBox(height: isDesktop ? 32 : 12),
               RestoreOptionsNextButton(
                 isDesktop: isDesktop,
