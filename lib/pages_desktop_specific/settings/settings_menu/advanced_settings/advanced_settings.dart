@@ -18,6 +18,7 @@ import '../../../../providers/global/prefs_provider.dart';
 import '../../../../themes/stack_colors.dart';
 import '../../../../utilities/assets.dart';
 import '../../../../utilities/constants.dart';
+import '../../../../utilities/stack_file_system.dart';
 import '../../../../utilities/text_styles.dart';
 import '../../../../widgets/custom_buttons/draggable_switch_button.dart';
 import '../../../../widgets/desktop/primary_button.dart';
@@ -390,6 +391,67 @@ class _AdvancedSettings extends ConsumerState<AdvancedSettings> {
                       ],
                     ),
                   ),
+                  if (StackFileSystem.canTogglePortableMode)
+                    const Padding(
+                      padding: EdgeInsets.all(10.0),
+                      child: Divider(
+                        thickness: 0.5,
+                      ),
+                    ),
+                  if (StackFileSystem.canTogglePortableMode)
+                    Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Portable mode",
+                                  style:
+                                      STextStyles.desktopTextExtraSmall(context)
+                                          .copyWith(
+                                    color: Theme.of(context)
+                                        .extension<StackColors>()!
+                                        .textDark,
+                                  ),
+                                  textAlign: TextAlign.left,
+                                ),
+                                Text(
+                                  "Store all data beside the AppImage. "
+                                  "Restart the app for changes to take effect.",
+                                  style: STextStyles.desktopTextExtraExtraSmall(
+                                    context,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 10,
+                          ),
+                          SizedBox(
+                            height: 20,
+                            width: 40,
+                            child: DraggableSwitchButton(
+                              isOn: ref.watch(
+                                prefsChangeNotifierProvider.select(
+                                  (value) => value.enablePortableMode,
+                                ),
+                              ),
+                              onValueChanged: (newValue) {
+                                StackFileSystem.setPortableMarker(newValue);
+                                ref
+                                    .read(prefsChangeNotifierProvider)
+                                    .enablePortableMode = newValue;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(
                     height: 10,
                   ),

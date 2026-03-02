@@ -24,6 +24,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 import 'package:logger/logger.dart';
 import 'package:mobile_app_privacy/mobile_app_privacy.dart';
+import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:window_size/window_size.dart';
 
@@ -96,7 +97,38 @@ void main(List<String> args) async {
   }
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Util.isDesktop && args.length == 2 && args.first == "-d") {
+  if (Platform.isLinux) {
+    final appImagePath = Platform.environment['APPIMAGE'];
+    if (appImagePath != null) {
+      final appImageDir = path.dirname(appImagePath);
+      final portableMarker = File(path.join(appImageDir, '.portable'));
+      final portableDataDir = Directory(
+        path.join(appImageDir, '.${AppConfig.appDefaultDataDirName}'),
+      );
+      // Portable mode is enabled when any of the following are true:
+      //  - the user created a `.portable` marker beside the AppImage,
+      //  - a portable data dir already exists beside the AppImage,
+      //  - the toggle in Advanced settings created the marker on a previous
+      //    run (handled by the two checks above), or
+      //  - the app is running on an amnesic / privacy focused distro such as
+      //    Whonix or Tails, where the home directory is not persistent.
+      // The pref toggle works by creating/removing the marker file, so it is
+      // covered by the marker check here and takes effect on the next launch.
+      if (portableMarker.existsSync() ||
+          portableDataDir.existsSync() ||
+          StackFileSystem.isAmnesicOrPortableDistro()) {
+        StackFileSystem.setDesktopOverrideDir(
+          portableDataDir.path,
+          portable: true,
+        );
+      }
+    }
+  }
+
+  if (!StackFileSystem.isPortableMode &&
+      Util.isDesktop &&
+      args.length == 2 &&
+      args.first == "-d") {
     StackFileSystem.setDesktopOverrideDir(args.last);
   }
 

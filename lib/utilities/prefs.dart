@@ -83,6 +83,7 @@ class Prefs extends ChangeNotifier {
       _autoLockInfo = await _getAutoLockInfo();
       _privacyScreen = await _getPrivacyScreen();
       _disableScreenShots = await _getDisableScreenShots();
+      _enablePortableMode = await _getEnablePortableMode();
 
       _initialized = true;
     }
@@ -1429,6 +1430,30 @@ class Prefs extends ChangeNotifier {
     return await DB.instance.get<dynamic>(
               boxName: DB.boxNamePrefs,
               key: "disableScreenShots",
+            )
+            as bool? ??
+        false;
+  }
+
+  // store all app data beside the AppImage instead of in the home directory
+  bool _enablePortableMode = false;
+  bool get enablePortableMode => _enablePortableMode;
+  set enablePortableMode(bool enablePortableMode) {
+    if (_enablePortableMode != enablePortableMode) {
+      DB.instance.put<dynamic>(
+        boxName: DB.boxNamePrefs,
+        key: "enablePortableMode",
+        value: enablePortableMode,
+      );
+      _enablePortableMode = enablePortableMode;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> _getEnablePortableMode() async {
+    return await DB.instance.get<dynamic>(
+              boxName: DB.boxNamePrefs,
+              key: "enablePortableMode",
             )
             as bool? ??
         false;

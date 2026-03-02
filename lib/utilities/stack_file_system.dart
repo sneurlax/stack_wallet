@@ -20,7 +20,11 @@ import 'util.dart';
 abstract class StackFileSystem {
   static String? _overrideDesktopDirPath;
   static bool _overrideDirSet = false;
-  static void setDesktopOverrideDir(String dirPath) {
+  static bool _isPortable = false;
+
+  static bool get isPortableMode => _isPortable;
+
+  static void setDesktopOverrideDir(String dirPath, {bool portable = false}) {
     if (_overrideDirSet) {
       throw Exception(
         "Attempted to change StackFileSystem._overrideDir unexpectedly",
@@ -28,6 +32,111 @@ abstract class StackFileSystem {
     }
     _overrideDesktopDirPath = dirPath;
     _overrideDirSet = true;
+    _isPortable = portable;
+  }
+
+  /// Detects whether the app is running on a privacy focused, amnesic, or
+  /// otherwise portable oriented Linux distribution such as Whonix or Tails.
+  ///
+  /// On such systems the user's home directory is typically not persistent, so
+  /// data should be stored beside the AppImage instead. All file reads are
+  /// wrapped in try/catch so that a missing file or permission error never
+  /// crashes startup; the worst case simply returns false.
+  static bool isAmnesicOrPortableDistro() {
+    if (!Platform.isLinux) {
+      return false;
+    }
+
+    // Whonix markers.
+    try {
+      if (File("/etc/whonix_version").existsSync() ||
+          Directory("/usr/share/whonix").existsSync()) {
+        return true;
+      }
+    } catch (_) {
+      // Ignore and continue checking other markers.
+    }
+
+    // Whonix uses well known hostnames such as 'host' or 'anon-...'.
+    try {
+      final hostname = Platform.localHostname.toLowerCase();
+      if (hostname == "host" || hostname.startsWith("anon-")) {
+        return true;
+      }
+    } catch (_) {
+      // Ignore and continue checking other markers.
+    }
+
+    // Tails markers.
+    try {
+      if (File("/etc/amnesia").existsSync() ||
+          Directory("/live").existsSync()) {
+        return true;
+      }
+    } catch (_) {
+      // Ignore and continue checking other markers.
+    }
+
+    try {
+      final osRelease = File("/etc/os-release");
+      if (osRelease.existsSync() &&
+          osRelease.readAsStringSync().toLowerCase().contains("tails")) {
+        return true;
+      }
+    } catch (_) {
+      // Ignore; absence or read failure simply means no match.
+    }
+
+    return false;
+  }
+
+  /// The path to the directory containing the running AppImage, or null if the
+  /// app is not running as an AppImage.
+  static String? get appImageDirectoryPath {
+    if (!Platform.isLinux) {
+      return null;
+    }
+    final appImagePath = Platform.environment['APPIMAGE'];
+    if (appImagePath == null) {
+      return null;
+    }
+    return path.dirname(appImagePath);
+  }
+
+  /// Whether the app is running as an AppImage and so can support the manual
+  /// portable mode toggle (which works by writing a marker beside the binary).
+  static bool get canTogglePortableMode => appImageDirectoryPath != null;
+
+  static File? _portableMarkerFile() {
+    final dir = appImageDirectoryPath;
+    if (dir == null) {
+      return null;
+    }
+    return File(path.join(dir, ".portable"));
+  }
+
+  /// Creates or removes the `.portable` marker beside the AppImage. The change
+  /// only takes effect on the next launch, since the data directory is chosen
+  /// during startup before this can be called. Returns true on success.
+  static bool setPortableMarker(bool enabled) {
+    final marker = _portableMarkerFile();
+    if (marker == null) {
+      return false;
+    }
+    try {
+      if (enabled) {
+        if (!marker.existsSync()) {
+          marker.createSync(recursive: true);
+        }
+      } else {
+        if (marker.existsSync()) {
+          marker.deleteSync();
+        }
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   static bool get _createSubDirs =>
@@ -213,23 +322,24 @@ abstract class StackFileSystem {
       }
     }
 
-    final appDocsDir = await getApplicationDocumentsDirectory();
-    const logsDirName = "${AppConfig.prefix}_Logs";
     final Directory logsDir;
 
-    if (Platform.isIOS) {
-      logsDir = Directory(path.join(appDocsDir.path, "logs"));
-    } else if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
-      // TODO check this is correct for macos
-      logsDir = Directory(path.join(appDocsDir.path, logsDirName));
-    } else if (Platform.isAndroid) {
-      // final dir = await wtfAndroidDocumentsPath();
-      // final logsDirPath = path.join(dir.path, logsDirName);
-      // logsDir = Directory(logsDirPath);
-
-      logsDir = Directory(path.join(appDocsDir.path, "logs"));
+    if (_overrideDesktopDirPath != null) {
+      logsDir = Directory(path.join(_overrideDesktopDirPath!, "logs"));
     } else {
-      throw Exception("Unsupported Platform");
+      final appDocsDir = await getApplicationDocumentsDirectory();
+      const logsDirName = "${AppConfig.prefix}_Logs";
+
+      if (Platform.isIOS) {
+        logsDir = Directory(path.join(appDocsDir.path, "logs"));
+      } else if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
+        // TODO check this is correct for macos
+        logsDir = Directory(path.join(appDocsDir.path, logsDirName));
+      } else if (Platform.isAndroid) {
+        logsDir = Directory(path.join(appDocsDir.path, "logs"));
+      } else {
+        throw Exception("Unsupported Platform");
+      }
     }
 
     if (!logsDir.existsSync()) {
