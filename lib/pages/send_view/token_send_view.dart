@@ -1205,15 +1205,39 @@ class _TokenSendViewState extends ConsumerState<TokenSendView> {
                                             (_) => TransactionFeeSelectionSheet(
                                               walletId: walletId,
                                               isToken: true,
-                                              amount: (Decimal.tryParse(
-                                                        cryptoAmountController
-                                                            .text,
-                                                      ) ??
-                                                      Decimal.zero)
-                                                  .toAmount(
-                                                    fractionDigits:
-                                                        tokenContract.decimals,
-                                                  ),
+                                              amount: () {
+                                                final symbols =
+                                                    Util.getSymbolsFor(
+                                                      locale: ref
+                                                          .read(
+                                                            localeServiceChangeNotifierProvider,
+                                                          )
+                                                          .locale,
+                                                    );
+                                                final groupSep =
+                                                    symbols?.GROUP_SEP ?? ",";
+                                                final decimalSep =
+                                                    symbols?.DECIMAL_SEP ?? ".";
+                                                final normalized =
+                                                    cryptoAmountController.text
+                                                        .replaceAll(
+                                                          groupSep,
+                                                          "",
+                                                        )
+                                                        .replaceFirst(
+                                                          decimalSep,
+                                                          ".",
+                                                        );
+                                                return (Decimal.tryParse(
+                                                          normalized,
+                                                        ) ??
+                                                        Decimal.zero)
+                                                    .toAmount(
+                                                      fractionDigits:
+                                                          tokenContract
+                                                              .decimals,
+                                                    );
+                                              }(),
                                               updateChosen: (String fee) {
                                                 if (fee == "custom") {
                                                   if (!isCustomFee.value) {
