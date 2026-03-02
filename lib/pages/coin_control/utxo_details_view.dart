@@ -23,8 +23,6 @@ import '../../utilities/amount/amount_formatter.dart';
 import '../../utilities/text_styles.dart';
 import '../../utilities/util.dart';
 import '../../wallets/isar/providers/wallet_info_provider.dart';
-import '../../wallets/wallet/impl/namecoin_wallet.dart';
-import '../../wallets/wallet/wallet.dart';
 import '../../widgets/background.dart';
 import '../../widgets/conditional_parent.dart';
 import '../../widgets/custom_buttons/app_bar_icon_button.dart';
@@ -36,6 +34,7 @@ import '../../widgets/desktop/secondary_button.dart';
 import '../../widgets/icon_widgets/utxo_status_icon.dart';
 import '../../widgets/rounded_container.dart';
 import '../wallet_view/transaction_views/transaction_details_view.dart' as tdv;
+import 'utxo_confirmed_status.dart';
 
 class UtxoDetailsView extends ConsumerStatefulWidget {
   const UtxoDetailsView({
@@ -69,18 +68,6 @@ class _UtxoDetailsViewState extends ConsumerState<UtxoDetailsView> {
     await MainDB.instance.putUTXO(utxo!.copyWith(isBlocked: !utxo!.isBlocked));
   }
 
-  bool _isConfirmed(UTXO utxo, int currentChainHeight, Wallet wallet) {
-    if (wallet is NamecoinWallet) {
-      return wallet.checkUtxoConfirmed(utxo, currentChainHeight);
-    } else {
-      return utxo.isConfirmed(
-        currentChainHeight,
-        wallet.cryptoCurrency.minConfirms,
-        wallet.cryptoCurrency.minCoinbaseConfirms,
-      );
-    }
-  }
-
   @override
   void initState() {
     utxo =
@@ -110,8 +97,7 @@ class _UtxoDetailsViewState extends ConsumerState<UtxoDetailsView> {
     final coin = ref.watch(pWalletCoin(widget.walletId));
     final currentHeight = ref.watch(pWalletChainHeight(widget.walletId));
 
-    final confirmed = _isConfirmed(
-      utxo!,
+    final confirmed = utxo!.isConfirmedStatus(
       currentHeight,
       ref.watch(pWallets.select((s) => s.getWallet(widget.walletId))),
     );

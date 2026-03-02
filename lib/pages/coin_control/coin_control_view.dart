@@ -26,8 +26,6 @@ import '../../utilities/assets.dart';
 import '../../utilities/constants.dart';
 import '../../utilities/text_styles.dart';
 import '../../wallets/isar/providers/wallet_info_provider.dart';
-import '../../wallets/wallet/impl/namecoin_wallet.dart';
-import '../../wallets/wallet/wallet.dart';
 import '../../wallets/wallet/wallet_mixin_interfaces/coin_control_interface.dart';
 import '../../widgets/animated_widgets/rotate_icon.dart';
 import '../../widgets/app_bar_field.dart';
@@ -42,6 +40,7 @@ import '../../widgets/rounded_container.dart';
 import '../../widgets/rounded_white_container.dart';
 import '../../widgets/toggle.dart';
 import 'utxo_card.dart';
+import 'utxo_confirmed_status.dart';
 import 'utxo_details_view.dart';
 
 enum CoinControlViewType { manage, use }
@@ -87,18 +86,6 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
     await coinControlInterface.updateBalance();
   }
 
-  bool _isConfirmed(UTXO utxo, int currentChainHeight, Wallet wallet) {
-    if (wallet is NamecoinWallet) {
-      return wallet.checkUtxoConfirmed(utxo, currentChainHeight);
-    } else {
-      return utxo.isConfirmed(
-        currentChainHeight,
-        wallet.cryptoCurrency.minConfirms,
-        wallet.cryptoCurrency.minCoinbaseConfirms,
-      );
-    }
-  }
-
   @override
   void initState() {
     if (widget.selectedUTXOs != null) {
@@ -123,21 +110,21 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
   Widget build(BuildContext context) {
     debugPrint("BUILD: $runtimeType");
 
-    final minConfirms =
-        ref
-            .watch(pWallets)
-            .getWallet(widget.walletId)
-            .cryptoCurrency
-            .minConfirms;
-
     final coin = ref.watch(pWalletCoin(widget.walletId));
     final currentHeight = ref.watch(pWalletChainHeight(widget.walletId));
+
+    final CCFilter _filter =
+        _isSearching
+            ? CCFilter.all
+            : _showBlocked
+            ? CCFilter.frozen
+            : CCFilter.available;
 
     if (_sort == CCSortDescriptor.address && !_isSearching) {
       _list = null;
       _map = MainDB.instance.queryUTXOsGroupedByAddressSync(
         walletId: widget.walletId,
-        filter: CCFilter.all,
+        filter: _filter,
         sort: _sort,
         searchTerm: "",
         cryptoCurrency: coin,
@@ -146,25 +133,21 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
       _map = null;
       _list = MainDB.instance.queryUTXOsSync(
         walletId: widget.walletId,
-        filter:
-            _isSearching
-                ? CCFilter.all
-                : _showBlocked
-                ? CCFilter.frozen
-                : CCFilter.available,
+        filter: _filter,
         sort: _sort,
         searchTerm: _isSearching ? searchController.text : "",
         cryptoCurrency: coin,
       );
     }
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
         unawaited(_refreshBalance());
         Navigator.of(context).pop(
           widget.type == CoinControlViewType.use ? _selectedAvailable : null,
         );
-        return false;
       },
       child: Background(
         child: Scaffold(
@@ -291,8 +274,8 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                           RoundedWhiteContainer(
                             child: Text(
                               "This option allows you to control, freeze, and utilize "
-                              "outputs at your discretion. Tap the output circle to "
-                              "select.",
+                              "outputs at your discretion. Tap an output to select it, "
+                              "or use the options button for more actions.",
                               style: STextStyles.w500_14(context).copyWith(
                                 color:
                                     Theme.of(
@@ -302,7 +285,7 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                             ),
                           ),
                         if (!_isSearching) const SizedBox(height: 10),
-                        if (!(_isSearching || _map != null))
+                        if (!_isSearching)
                           SizedBox(
                             height: 48,
                             child: Toggle(
@@ -360,8 +343,7 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                                           CoinControlViewType.manage ||
                                       (widget.type == CoinControlViewType.use &&
                                           !utxo.isBlocked &&
-                                          _isConfirmed(
-                                            utxo,
+                                          utxo.isConfirmedStatus(
                                             currentHeight,
                                             ref.watch(
                                               pWallets.select(
@@ -384,7 +366,7 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                                     }
                                     setState(() {});
                                   },
-                                  onPressed: () async {
+                                  onOptionsPressed: () async {
                                     final result = await Navigator.of(
                                       context,
                                     ).pushNamed(
@@ -434,8 +416,7 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                                           (widget.type ==
                                                   CoinControlViewType.use &&
                                               !_showBlocked &&
-                                              _isConfirmed(
-                                                utxo,
+                                              utxo.isConfirmedStatus(
                                                 currentHeight,
                                                 ref.watch(
                                                   pWallets.select(
@@ -458,7 +439,7 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                                         }
                                         setState(() {});
                                       },
-                                      onPressed: () async {
+                                      onOptionsPressed: () async {
                                         final result = await Navigator.of(
                                           context,
                                         ).pushNamed(
@@ -590,8 +571,7 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                                                           CoinControlViewType
                                                               .use &&
                                                       !utxo.isBlocked &&
-                                                      _isConfirmed(
-                                                        utxo,
+                                                      utxo.isConfirmedStatus(
                                                         currentHeight,
                                                         ref.watch(
                                                           pWallets.select(
@@ -621,7 +601,7 @@ class _CoinControlViewState extends ConsumerState<CoinControlView> {
                                                 }
                                                 setState(() {});
                                               },
-                                              onPressed: () async {
+                                              onOptionsPressed: () async {
                                                 final result =
                                                     await Navigator.of(
                                                       context,

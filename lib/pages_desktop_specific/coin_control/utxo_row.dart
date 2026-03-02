@@ -10,6 +10,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:isar_community/isar.dart';
 
 import '../../db/isar/main_db.dart';
@@ -19,13 +20,13 @@ import '../../providers/global/wallets_provider.dart';
 import '../../themes/stack_colors.dart';
 import '../../utilities/amount/amount.dart';
 import '../../utilities/amount/amount_formatter.dart';
+import '../../utilities/assets.dart';
 import '../../utilities/text_styles.dart';
 import '../../wallets/crypto_currency/coins/namecoin.dart';
 import '../../wallets/isar/providers/wallet_info_provider.dart';
 import '../../wallets/wallet/impl/namecoin_wallet.dart';
 import '../../widgets/conditional_parent.dart';
-import '../../widgets/custom_buttons/blue_text_button.dart';
-import '../../widgets/desktop/secondary_button.dart';
+import '../../widgets/custom_buttons/app_bar_icon_button.dart';
 import '../../widgets/icon_widgets/utxo_status_icon.dart';
 import '../../widgets/rounded_container.dart';
 
@@ -84,6 +85,16 @@ class _UtxoRowState extends ConsumerState<UtxoRow> {
     );
   }
 
+  void _toggleSelected() {
+    if (widget.compact && utxo.isBlocked) {
+      return;
+    }
+    setState(() {
+      widget.data.selected = !widget.data.selected;
+    });
+    widget.onSelectionChanged?.call(widget.data);
+  }
+
   @override
   void initState() {
     utxo =
@@ -109,7 +120,9 @@ class _UtxoRowState extends ConsumerState<UtxoRow> {
           utxo = snapshot.data!;
         }
 
-        return RoundedContainer(
+        return GestureDetector(
+          onTap: _toggleSelected,
+          child: RoundedContainer(
           borderColor:
               widget.compact && widget.compactWithBorder
                   ? Theme.of(
@@ -219,15 +232,21 @@ class _UtxoRowState extends ConsumerState<UtxoRow> {
                 ),
               ),
               const SizedBox(width: 10),
-              widget.compact
-                  ? CustomTextButton(text: "Details", onTap: _details)
-                  : SecondaryButton(
-                    width: 120,
-                    buttonHeight: ButtonHeight.xs,
-                    label: "Details",
-                    onPressed: _details,
-                  ),
+              AppBarIconButton(
+                size: 36,
+                shadows: const [],
+                color: Theme.of(context).extension<StackColors>()!.popupBG,
+                icon: SvgPicture.asset(
+                  Assets.svg.verticalEllipsis,
+                  color:
+                      Theme.of(context).extension<StackColors>()!.textSubtitle1,
+                  width: 20,
+                  height: 20,
+                ),
+                onPressed: _details,
+              ),
             ],
+          ),
           ),
         );
       },
