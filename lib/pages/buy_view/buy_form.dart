@@ -133,7 +133,9 @@ class _BuyFormState extends ConsumerState<BuyForm> {
       return;
     }
 
-    final value = Decimal.tryParse(_buyAmountController.text);
+    final value = Decimal.tryParse(
+      _buyAmountController.text.replaceAll(",", ""),
+    );
     if (value == null) {
       setState(() {
         _amountOutOfRangeErrorString = "Invalid amount";
@@ -414,11 +416,13 @@ class _BuyFormState extends ConsumerState<BuyForm> {
       crypto: selectedCrypto!,
       fiat: selectedFiat!,
       youPayFiatPrice: buyWithFiat
-          ? Decimal.parse(_buyAmountController.text)
+          ? Decimal.parse(_buyAmountController.text.replaceAll(",", ""))
           : Decimal.parse("100"), // dummy value
       youReceiveCryptoAmount: buyWithFiat
           ? Decimal.parse("0.000420282") // dummy value
-          : Decimal.parse(_buyAmountController.text), // Ternary for this
+          : Decimal.parse(
+              _buyAmountController.text.replaceAll(",", ""),
+            ), // Ternary for this
       id: "id", // anything; we get an ID back
       receivingAddress: _receiveAddressController.text,
       buyWithFiat: buyWithFiat,
@@ -1124,7 +1128,7 @@ class _BuyFormState extends ConsumerState<BuyForm> {
                                       .getData(Clipboard.kTextPlain);
 
                                   final amountString = Decimal.tryParse(
-                                    data?.text ?? "",
+                                    (data?.text ?? "").replaceAll(",", ""),
                                   );
                                   if (amountString != null) {
                                     _buyAmountController.text = amountString

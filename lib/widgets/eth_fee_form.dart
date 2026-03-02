@@ -72,9 +72,12 @@ class _EthFeeFormState extends State<EthFeeForm> {
   late int _gasLimitCache;
 
   EthEIP1559Fee get _current => EthEIP1559Fee(
-    maxBaseFeeGwei: Decimal.tryParse(maxBaseController.text) ?? Decimal.zero,
+    maxBaseFeeGwei:
+        Decimal.tryParse(maxBaseController.text.replaceAll(",", "")) ??
+            Decimal.zero,
     priorityFeeGwei:
-        Decimal.tryParse(priorityFeeController.text) ?? Decimal.zero,
+        Decimal.tryParse(priorityFeeController.text.replaceAll(",", "")) ??
+            Decimal.zero,
     gasLimit: int.parse(gasLimitController.text),
   );
 
@@ -267,7 +270,7 @@ class _EthFeeFormState extends State<EthFeeForm> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             focusNode: gasLimitFocus,
             onChanged: (value) {
-              final intValue = int.tryParse(value);
+              final intValue = int.tryParse(value.replaceAll(",", ""));
               if (intValue == null ||
                   intValue < widget.minGasLimit ||
                   intValue > widget.maxGasLimit) {

@@ -1199,17 +1199,20 @@ class _TokenSendViewState extends ConsumerState<TokenSendView> {
                                             TransactionFeeSelectionSheet(
                                               walletId: walletId,
                                               isToken: true,
-                                              amount:
-                                                  (Decimal.tryParse(
-                                                            cryptoAmountController
-                                                                .text,
-                                                          ) ??
-                                                          Decimal.zero)
-                                                      .toAmount(
-                                                        fractionDigits:
-                                                            tokenContract
-                                                                .decimals,
-                                                      ),
+                                              amount: ref
+                                                      .read(
+                                                        pAmountFormatter(coin),
+                                                      )
+                                                      .tryParse(
+                                                        cryptoAmountController
+                                                            .text,
+                                                        tokenContract:
+                                                            tokenContract,
+                                                      ) ??
+                                                  Amount.zeroWith(
+                                                    fractionDigits:
+                                                        tokenContract.decimals,
+                                                  ),
                                               updateChosen: (String fee) {
                                                 if (fee == "custom") {
                                                   if (!isCustomFee.value) {
