@@ -15,6 +15,7 @@ import 'package:isar_community/isar.dart';
 
 import '../../../models/isar/models/isar_models.dart';
 import '../../../pages/receive_view/addresses/address_card.dart';
+import '../../../pages/receive_view/addresses/address_tag_filter.dart';
 import '../../../providers/db/main_db_provider.dart';
 import '../../../themes/stack_colors.dart';
 import '../../../utilities/assets.dart';
@@ -47,11 +48,38 @@ class _DesktopAddressListState extends ConsumerState<DesktopAddressList> {
 
   String _searchString = "";
 
+  String? _selectedTag;
+
   late final TextEditingController _searchController;
   final searchFieldFocusNode = FocusNode();
 
+  List<String> _distinctTags() {
+    final labels =
+        ref
+            .read(mainDBProvider)
+            .getAddressLabels(widget.walletId)
+            .filter()
+            .tagsIsNotNull()
+            .and()
+            .tagsIsNotEmpty()
+            .findAllSync();
+
+    final set = <String>{};
+    for (final label in labels) {
+      final tags = label.tags;
+      if (tags != null) {
+        set.addAll(tags);
+      }
+    }
+
+    final list = set.toList()..sort();
+    return list;
+  }
+
   List<Id> _search(String term) {
-    if (term.isEmpty) {
+    final tag = _selectedTag;
+
+    if (term.isEmpty && tag == null) {
       return ref
           .read(mainDBProvider)
           .getAddresses(widget.walletId)
@@ -93,17 +121,30 @@ class _DesktopAddressListState extends ConsumerState<DesktopAddressList> {
             .getAddressLabels(widget.walletId)
             .filter()
             .group(
-              (q) => q
-                  .valueContains(term, caseSensitive: false)
-                  .or()
-                  .addressStringContains(term, caseSensitive: false)
-                  .or()
-                  .group(
-                    (q) => q.tagsIsNotNull().and().tagsElementContains(
-                      term,
-                      caseSensitive: false,
-                    ),
-                  ),
+              (q) =>
+                  tag == null
+                      ? q.addressStringIsNotEmpty()
+                      : q.tagsIsNotNull().and().tagsElementEqualTo(
+                        tag,
+                        caseSensitive: false,
+                      ),
+            )
+            .and()
+            .group(
+              (q) =>
+                  term.isEmpty
+                      ? q.addressStringIsNotEmpty()
+                      : q
+                          .valueContains(term, caseSensitive: false)
+                          .or()
+                          .addressStringContains(term, caseSensitive: false)
+                          .or()
+                          .group(
+                            (q) => q.tagsIsNotNull().and().tagsElementContains(
+                              term,
+                              caseSensitive: false,
+                            ),
+                          ),
             )
             .findAllSync();
 
@@ -169,6 +210,7 @@ class _DesktopAddressListState extends ConsumerState<DesktopAddressList> {
     final coin = ref.watch(pWalletCoin(widget.walletId));
 
     final ids = _search(_searchString);
+    final tags = _distinctTags();
 
     return Column(
       children: [
@@ -242,6 +284,17 @@ class _DesktopAddressListState extends ConsumerState<DesktopAddressList> {
             ),
           ),
         ),
+        if (tags.isNotEmpty) const SizedBox(height: 16),
+        if (tags.isNotEmpty)
+          AddressTagFilter(
+            tags: tags,
+            selectedTag: _selectedTag,
+            onSelected: (tag) {
+              setState(() {
+                _selectedTag = tag;
+              });
+            },
+          ),
         const SizedBox(height: 20),
         Expanded(
           child: RoundedWhiteContainer(

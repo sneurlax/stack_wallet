@@ -25,6 +25,7 @@ import '../../../widgets/custom_buttons/app_bar_icon_button.dart';
 import '../../../widgets/loading_indicator.dart';
 import 'address_card.dart';
 import 'address_details_view.dart';
+import 'address_tag_filter.dart';
 
 class WalletAddressesView extends ConsumerStatefulWidget {
   const WalletAddressesView({super.key, required this.walletId});
@@ -43,11 +44,37 @@ class _WalletAddressesViewState extends ConsumerState<WalletAddressesView> {
 
   final String _searchString = "";
 
+  String? _selectedTag;
+
   // late final TextEditingController _searchController;
   // final searchFieldFocusNode = FocusNode();
 
+  Future<List<String>> _distinctTags() async {
+    final labels =
+        await MainDB.instance
+            .getAddressLabels(widget.walletId)
+            .filter()
+            .tagsIsNotNull()
+            .and()
+            .tagsIsNotEmpty()
+            .findAll();
+
+    final set = <String>{};
+    for (final label in labels) {
+      final tags = label.tags;
+      if (tags != null) {
+        set.addAll(tags);
+      }
+    }
+
+    final list = set.toList()..sort();
+    return list;
+  }
+
   Future<List<int>> _search(String term) async {
-    if (term.isEmpty) {
+    final tag = _selectedTag;
+
+    if (term.isEmpty && tag == null) {
       return MainDB.instance
           .getAddresses(widget.walletId)
           .filter()
@@ -87,17 +114,30 @@ class _WalletAddressesViewState extends ConsumerState<WalletAddressesView> {
             .getAddressLabels(widget.walletId)
             .filter()
             .group(
-              (q) => q
-                  .valueContains(term, caseSensitive: false)
-                  .or()
-                  .addressStringContains(term, caseSensitive: false)
-                  .or()
-                  .group(
-                    (q) => q.tagsIsNotNull().and().tagsElementContains(
-                      term,
-                      caseSensitive: false,
-                    ),
-                  ),
+              (q) =>
+                  tag == null
+                      ? q.addressStringIsNotEmpty()
+                      : q.tagsIsNotNull().and().tagsElementEqualTo(
+                        tag,
+                        caseSensitive: false,
+                      ),
+            )
+            .and()
+            .group(
+              (q) =>
+                  term.isEmpty
+                      ? q.addressStringIsNotEmpty()
+                      : q
+                          .valueContains(term, caseSensitive: false)
+                          .or()
+                          .addressStringContains(term, caseSensitive: false)
+                          .or()
+                          .group(
+                            (q) => q.tagsIsNotNull().and().tagsElementContains(
+                              term,
+                              caseSensitive: false,
+                            ),
+                          ),
             )
             .findAll();
 
@@ -258,6 +298,27 @@ class _WalletAddressesViewState extends ConsumerState<WalletAddressesView> {
             // SizedBox(
             //   height: isDesktop ? 20 : 16,
             // ),
+            FutureBuilder(
+              future: _distinctTags(),
+              builder: (context, AsyncSnapshot<List<String>> snapshot) {
+                final tags = snapshot.data ?? [];
+                if (tags.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: AddressTagFilter(
+                    tags: tags,
+                    selectedTag: _selectedTag,
+                    onSelected: (tag) {
+                      setState(() {
+                        _selectedTag = tag;
+                      });
+                    },
+                  ),
+                );
+              },
+            ),
             Expanded(
               child: FutureBuilder(
                 future: _search(_searchString),

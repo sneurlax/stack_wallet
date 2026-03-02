@@ -20,6 +20,7 @@ import '../../../providers/db/main_db_provider.dart';
 import '../../../providers/global/wallets_provider.dart';
 import '../../../themes/stack_colors.dart';
 import '../../../utilities/address_utils.dart';
+import '../../../utilities/constants.dart';
 import '../../../utilities/text_styles.dart';
 import '../../../utilities/util.dart';
 import '../../../wallets/isar/providers/wallet_info_provider.dart';
@@ -33,9 +34,14 @@ import '../../../widgets/custom_buttons/simple_copy_button.dart';
 import '../../../widgets/custom_buttons/simple_edit_button.dart';
 import '../../../widgets/desktop/desktop_dialog.dart';
 import '../../../widgets/desktop/desktop_dialog_close_button.dart';
+import '../../../widgets/desktop/primary_button.dart';
+import '../../../widgets/desktop/secondary_button.dart';
 import '../../../widgets/detail_item.dart';
 import '../../../widgets/qr.dart';
+import '../../../widgets/rounded_container.dart';
 import '../../../widgets/rounded_white_container.dart';
+import '../../../widgets/stack_dialog.dart';
+import '../../../widgets/stack_text_field.dart';
 import '../../../widgets/transaction_card.dart';
 import '../../wallet_view/sub_widgets/no_transactions_found.dart';
 import '../../wallet_view/transaction_views/transaction_details_view.dart'
@@ -325,7 +331,14 @@ class _AddressDetailsViewState extends ConsumerState<AddressDetailsView> {
                   ),
                 ),
                 const _Div(height: 12),
-                _Tags(tags: label!.tags),
+                _Tags(
+                  tags: label!.tags,
+                  onTagsChanged: (newTags) {
+                    MainDB.instance.putAddressLabel(
+                      label!.copyWith(tags: newTags),
+                    );
+                  },
+                ),
                 if (address.derivationPath != null) const _Div(height: 12),
                 if (address.derivationPath != null)
                   DetailItem(
@@ -557,9 +570,14 @@ class _Div extends StatelessWidget {
 }
 
 class _Tags extends StatelessWidget {
-  const _Tags({super.key, required this.tags});
+  const _Tags({
+    super.key,
+    required this.tags,
+    required this.onTagsChanged,
+  });
 
   final List<String>? tags;
+  final void Function(List<String>) onTagsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -571,12 +589,19 @@ class _Tags extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("Tags", style: STextStyles.itemSubtitle(context)),
-              Container(),
-              // SimpleEditButton(
-              //   onPressedOverride: () {
-              //     // TODO edit tags
-              //   },
-              // ),
+              SimpleEditButton(
+                onPressedOverride: () async {
+                  final result = await showDialog<List<String>>(
+                    context: context,
+                    builder: (context) => _EditTagsDialog(
+                      tags: tags ?? [],
+                    ),
+                  );
+                  if (result != null) {
+                    onTagsChanged(result);
+                  }
+                },
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -595,6 +620,292 @@ class _Tags extends StatelessWidget {
               ),
         ],
       ),
+    );
+  }
+}
+
+class _EditTagsDialog extends StatefulWidget {
+  const _EditTagsDialog({required this.tags});
+
+  final List<String> tags;
+
+  @override
+  State<_EditTagsDialog> createState() => _EditTagsDialogState();
+}
+
+class _EditTagsDialogState extends State<_EditTagsDialog> {
+  static const _defaultSuggestions = [
+    "personal",
+    "business",
+    "mining",
+    "exchange",
+    "donation",
+    "savings",
+  ];
+
+  late final List<String> _tags;
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _tags = List<String>.from(widget.tags);
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _addTag(String tag) {
+    final trimmed = tag.trim().toLowerCase();
+    if (trimmed.isNotEmpty && !_tags.contains(trimmed)) {
+      setState(() {
+        _tags.add(trimmed);
+      });
+    }
+    _controller.clear();
+  }
+
+  void _removeTag(String tag) {
+    setState(() {
+      _tags.remove(tag);
+    });
+  }
+
+  List<String> get _availableSuggestions {
+    return _defaultSuggestions
+        .where((s) => !_tags.contains(s))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDesktop = Util.isDesktop;
+
+    if (isDesktop) {
+      return DesktopDialog(
+        maxWidth: 500,
+        maxHeight: 500,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 32),
+                  child: Text(
+                    "Edit tags",
+                    style: STextStyles.desktopH3(context),
+                  ),
+                ),
+                const DesktopDialogCloseButton(),
+              ],
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: _buildContent(context),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SecondaryButton(
+                      label: "Cancel",
+                      buttonHeight: ButtonHeight.l,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: PrimaryButton(
+                      label: "Save",
+                      buttonHeight: ButtonHeight.l,
+                      onPressed: () => Navigator.of(context).pop(_tags),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return StackDialogBase(
+        keyboardPaddingAmount: MediaQuery.of(context).viewInsets.bottom,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Edit tags",
+              style: STextStyles.pageTitleH2(context),
+            ),
+            const SizedBox(height: 16),
+            _buildContent(context),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: SecondaryButton(
+                    label: "Cancel",
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: PrimaryButton(
+                    label: "Save",
+                    onPressed: () => Navigator.of(context).pop(_tags),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildContent(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_tags.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _tags.map((tag) {
+              return RoundedContainer(
+                radiusMultiplier: 0.5,
+                padding: const EdgeInsets.only(
+                  left: 8,
+                  top: 4,
+                  bottom: 4,
+                  right: 4,
+                ),
+                color: Theme.of(context)
+                    .extension<StackColors>()!
+                    .buttonBackPrimary,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      tag,
+                      style: STextStyles.w500_14(context).copyWith(
+                        color: Theme.of(context)
+                            .extension<StackColors>()!
+                            .buttonTextPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => _removeTag(tag),
+                      child: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Theme.of(context)
+                            .extension<StackColors>()!
+                            .buttonTextPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        if (_tags.isNotEmpty) const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  Constants.size.circularBorderRadius,
+                ),
+                child: TextField(
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  style: Util.isDesktop
+                      ? STextStyles.desktopTextExtraSmall(context).copyWith(
+                          color: Theme.of(context)
+                              .extension<StackColors>()!
+                              .textFieldActiveText,
+                          height: 1.8,
+                        )
+                      : STextStyles.field(context),
+                  decoration: standardInputDecoration(
+                    "Add tag",
+                    _focusNode,
+                    context,
+                    desktopMed: Util.isDesktop,
+                  ),
+                  onSubmitted: (value) {
+                    _addTag(value);
+                    _focusNode.requestFocus();
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            PrimaryButton(
+              width: 70,
+              label: "Add",
+              onPressed: () {
+                _addTag(_controller.text);
+                _focusNode.requestFocus();
+              },
+            ),
+          ],
+        ),
+        if (_availableSuggestions.isNotEmpty) const SizedBox(height: 12),
+        if (_availableSuggestions.isNotEmpty)
+          Text(
+            "Suggestions",
+            style: STextStyles.itemSubtitle(context).copyWith(
+              color: Theme.of(context)
+                  .extension<StackColors>()!
+                  .textSubtitle1,
+            ),
+          ),
+        if (_availableSuggestions.isNotEmpty) const SizedBox(height: 8),
+        if (_availableSuggestions.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _availableSuggestions.map((suggestion) {
+              return RoundedContainer(
+                radiusMultiplier: 0.5,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 5,
+                  horizontal: 7,
+                ),
+                color: Theme.of(context)
+                    .extension<StackColors>()!
+                    .buttonBackSecondary,
+                onPressed: () => _addTag(suggestion),
+                child: Text(
+                  suggestion,
+                  style: STextStyles.w500_14(context).copyWith(
+                    color: Theme.of(context)
+                        .extension<StackColors>()!
+                        .buttonTextSecondary,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+      ],
     );
   }
 }
