@@ -1066,10 +1066,25 @@ class _ConfirmTransactionViewState
                             "Transaction fee",
                             style: STextStyles.smallMed12(context),
                           ),
-                          SelectableText(
-                            ref.watch(pAmountFormatter(coin)).format(fee!),
-                            style: STextStyles.itemSubtitle12(context),
-                            textAlign: TextAlign.right,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              SelectableText(
+                                ref.watch(pAmountFormatter(coin)).format(fee!),
+                                style: STextStyles.itemSubtitle12(context),
+                                textAlign: TextAlign.right,
+                              ),
+                              if (widget.txData.fee != null &&
+                                  widget.txData.vSize != null &&
+                                  widget.txData.vSize! > 0)
+                                Text(
+                                  " (~${(fee.raw.toInt() / widget.txData.vSize!).toStringAsFixed(1)} sat/vB)",
+                                  style: STextStyles.smallMed12(context),
+                                  textAlign: TextAlign.right,
+                                ),
+                            ],
                           ),
                         ],
                       ),
@@ -1085,25 +1100,6 @@ class _ConfirmTransactionViewState
                             widget.txData.nonce.toString(),
                             style: STextStyles.itemSubtitle12(context),
                             textAlign: TextAlign.right,
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (widget.txData.fee != null && widget.txData.vSize != null)
-                    const SizedBox(height: 12),
-                  if (widget.txData.fee != null && widget.txData.vSize != null)
-                    RoundedWhiteContainer(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "sats/vByte",
-                            style: STextStyles.smallMed12(context),
-                          ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            "~${fee!.raw.toInt() ~/ widget.txData.vSize!}",
-                            style: STextStyles.itemSubtitle12(context),
                           ),
                         ],
                       ),
@@ -1641,40 +1637,24 @@ class _ConfirmTransactionViewState
                   color: Theme.of(
                     context,
                   ).extension<StackColors>()!.textFieldDefaultBG,
-                  child: SelectableText(
-                    ref.watch(pAmountFormatter(coin)).format(fee!),
-                    style: STextStyles.itemSubtitle(context),
-                  ),
-                ),
-              ),
-            if (isDesktop &&
-                !widget.isPaynymTransaction &&
-                widget.txData.fee != null &&
-                widget.txData.vSize != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 32),
-                child: Text(
-                  "sats/vByte",
-                  style: STextStyles.desktopTextExtraExtraSmall(context),
-                ),
-              ),
-            if (isDesktop &&
-                !widget.isPaynymTransaction &&
-                widget.txData.fee != null &&
-                widget.txData.vSize != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 10, left: 32, right: 32),
-                child: RoundedContainer(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 18,
-                  ),
-                  color: Theme.of(
-                    context,
-                  ).extension<StackColors>()!.textFieldDefaultBG,
-                  child: SelectableText(
-                    "~${fee!.raw.toInt() ~/ widget.txData.vSize!}",
-                    style: STextStyles.itemSubtitle(context),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      SelectableText(
+                        ref.watch(pAmountFormatter(coin)).format(fee!),
+                        style: STextStyles.itemSubtitle(context),
+                      ),
+                      if (widget.txData.fee != null &&
+                          widget.txData.vSize != null &&
+                          widget.txData.vSize! > 0)
+                        Text(
+                          " (~${(fee.raw.toInt() / widget.txData.vSize!).toStringAsFixed(1)} sat/vB)",
+                          style: STextStyles.desktopTextExtraExtraSmall(
+                            context,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
