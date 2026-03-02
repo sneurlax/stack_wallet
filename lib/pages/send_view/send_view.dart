@@ -1141,11 +1141,22 @@ class _SendViewState extends ConsumerState<SendView> {
       ),
       builder: (_) => TransactionFeeSelectionSheet(
         walletId: walletId,
-        amount:
-            (Decimal.tryParse(cryptoAmountController.text) ??
-                    ref.watch(pSendAmount)?.decimal ??
-                    Decimal.zero)
-                .toAmount(fractionDigits: coin.fractionDigits),
+        amount: () {
+          // Locale-aware parsing: normalize separators before parsing.
+          final symbols = Util.getSymbolsFor(
+            locale:
+                ref.read(localeServiceChangeNotifierProvider).locale,
+          );
+          final groupSep = symbols?.GROUP_SEP ?? ",";
+          final decimalSep = symbols?.DECIMAL_SEP ?? ".";
+          final normalized = cryptoAmountController.text
+              .replaceAll(groupSep, "")
+              .replaceFirst(decimalSep, ".");
+          return (Decimal.tryParse(normalized) ??
+                  ref.watch(pSendAmount)?.decimal ??
+                  Decimal.zero)
+              .toAmount(fractionDigits: coin.fractionDigits);
+        }(),
         updateChosen: (String fee) {
           if (fee == "custom") {
             if (!isCustomFee.value) {

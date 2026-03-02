@@ -27,10 +27,57 @@ class AmountInputFormatter extends TextInputFormatter {
     final decimalSeparator = numberSymbols?.DECIMAL_SEP ?? ".";
     final groupSeparator = numberSymbols?.GROUP_SEP ?? ",";
 
-    String newText = newValue.text.replaceAll(groupSeparator, "");
+    // Detect paste: new text is significantly longer than old text.
+    // Normalize pasted values that may use a different locale's separators.
+    TextEditingValue valueToProcess = newValue;
+    if (newValue.text.length - oldValue.text.length > 1) {
+      String pasted = newValue.text;
+      final hasDots = pasted.contains(".");
+      final hasCommas = pasted.contains(",");
+
+      if (hasDots && hasCommas) {
+        // Both separators present: the last occurrence is the decimal sep.
+        final lastDot = pasted.lastIndexOf(".");
+        final lastComma = pasted.lastIndexOf(",");
+        if (lastDot > lastComma) {
+          // e.g. "1,234.56" — dot is decimal
+          pasted = pasted.replaceAll(",", "");
+          pasted = pasted.replaceFirst(".", decimalSeparator);
+        } else {
+          // e.g. "1.234,56" — comma is decimal
+          pasted = pasted.replaceAll(".", "");
+          pasted = pasted.replaceFirst(",", decimalSeparator);
+        }
+      } else if (hasDots && !hasCommas && decimalSeparator == ",") {
+        // Locale expects "," as decimal but pasted value uses ".".
+        // If there's exactly one ".", treat it as the decimal separator.
+        if (".".allMatches(pasted).length == 1) {
+          pasted = pasted.replaceFirst(".", decimalSeparator);
+        } else {
+          // Multiple dots: they are group separators, remove them.
+          pasted = pasted.replaceAll(".", "");
+        }
+      } else if (hasCommas && !hasDots && decimalSeparator == ".") {
+        // Locale expects "." as decimal but pasted value uses ",".
+        // If there's exactly one ",", treat it as the decimal separator.
+        if (",".allMatches(pasted).length == 1) {
+          pasted = pasted.replaceFirst(",", decimalSeparator);
+        } else {
+          // Multiple commas: they are group separators, remove them.
+          pasted = pasted.replaceAll(",", "");
+        }
+      }
+
+      valueToProcess = TextEditingValue(
+        text: pasted,
+        selection: TextSelection.collapsed(offset: pasted.length),
+      );
+    }
+
+    String newText = valueToProcess.text.replaceAll(groupSeparator, "");
 
     final selectionIndexFromTheRight =
-        newValue.text.length - newValue.selection.end;
+        valueToProcess.text.length - valueToProcess.selection.end;
 
     String? fraction;
     if (newText.contains(decimalSeparator)) {
