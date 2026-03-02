@@ -49,6 +49,7 @@ import '../../widgets/conditional_parent.dart';
 import '../../widgets/custom_buttons/app_bar_icon_button.dart';
 import '../../widgets/custom_buttons/blue_text_button.dart';
 import '../../widgets/desktop/desktop_dialog.dart';
+import '../../widgets/desktop/primary_button.dart';
 import '../../widgets/desktop/secondary_button.dart';
 import '../../widgets/qr.dart';
 import '../../widgets/rounded_container.dart';
@@ -163,6 +164,21 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
         (value) => value.trades.firstWhere((e) => e.tradeId == tradeId),
       ),
     );
+
+    final isTerminalStatus = const {
+      "Finished",
+      "finished",
+      "completed",
+      "Completed",
+      "Failed",
+      "failed",
+      "Refunded",
+      "refunded",
+      "Expired",
+      "expired",
+      "Closed",
+      "closed",
+    }.contains(trade.status);
 
     final bool hasTx =
         sentFromStack ||
@@ -284,6 +300,75 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
                         Navigator.of(context).pushNamed(
                           SendFromView.routeName,
                           arguments: Tuple4(coin, amount, address, trade),
+                        );
+                      },
+                    ),
+                  if (isTerminalStatus) const SizedBox(height: 16),
+                  if (isTerminalStatus)
+                    SecondaryButton(
+                      label: "Delete trade",
+                      buttonHeight: ButtonHeight.l,
+                      onPressed: () {
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) => DesktopDialog(
+                            maxWidth: 450,
+                            maxHeight: 300,
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    "Delete this trade?",
+                                    style: STextStyles.desktopH3(context),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    "Trade will be deleted permanently!",
+                                    style:
+                                        STextStyles.desktopTextSmall(context),
+                                  ),
+                                  const Spacer(),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: SecondaryButton(
+                                          label: "Cancel",
+                                          buttonHeight: ButtonHeight.l,
+                                          onPressed:
+                                              Navigator.of(context).pop,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: PrimaryButton(
+                                          label: "Delete",
+                                          buttonHeight: ButtonHeight.l,
+                                          onPressed: () async {
+                                            await ref
+                                                .read(tradesServiceProvider)
+                                                .delete(
+                                                  trade: trade,
+                                                  shouldNotifyListeners: true,
+                                                );
+                                            if (context.mounted) {
+                                              Navigator.of(
+                                                context,
+                                              ).pop(); // close confirm dialog
+                                              Navigator.of(
+                                                context,
+                                                rootNavigator: true,
+                                              ).pop(); // close trade details dialog
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         );
                       },
                     ),
