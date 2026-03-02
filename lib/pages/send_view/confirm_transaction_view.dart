@@ -17,7 +17,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:isar_community/isar.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../models/isar/models/contact_entry.dart';
 import '../../models/isar/models/isar_models.dart';
 import '../../models/input.dart';
 import '../../models/isar/models/transaction_note.dart';
@@ -25,6 +27,7 @@ import '../../models/isar/ordinal.dart';
 import '../../notifications/show_flush_bar.dart';
 import '../../pages_desktop_specific/coin_control/desktop_coin_control_use_dialog.dart';
 import '../../pages_desktop_specific/my_stack_view/wallet_view/sub_widgets/desktop_auth_send.dart';
+import '../../providers/global/address_book_service_provider.dart';
 import '../../providers/global/global_nav_key_provider.dart';
 import '../../providers/providers.dart';
 import '../../providers/wallet/public_private_balance_state_provider.dart';
@@ -108,6 +111,11 @@ class _ConfirmTransactionViewState
   late final String walletId;
   late final String routeOnSuccessName;
   late final bool isDesktop;
+
+  bool _saveToAddressBook = true;
+
+  late final FocusNode _saveRecipientFocusNode;
+  late final TextEditingController saveRecipientNameController;
 
   late final FocusNode _noteFocusNode;
   late final TextEditingController noteController;
@@ -543,6 +551,43 @@ class _ConfirmTransactionViewState
             );
       }
 
+      // save recipient to address book if toggled on
+      if (_saveToAddressBook) {
+        final recipientAddress =
+            widget.txData.recipients?.first.address ??
+            widget.txData.sparkRecipients?.first.address;
+        if (recipientAddress != null && recipientAddress.isNotEmpty) {
+          final addressBookService = ref.read(addressBookServiceProvider);
+
+          // skip if the address is already saved for this coin
+          final alreadySaved = addressBookService.contacts.any(
+            (contact) => contact.addresses.any(
+              (e) =>
+                  e.address == recipientAddress &&
+                  e.coinName == coin.identifier,
+            ),
+          );
+
+          if (!alreadySaved) {
+            final name = saveRecipientNameController.text.trim().isEmpty
+                ? "Saved recipient"
+                : saveRecipientNameController.text.trim();
+            final entry = ContactAddressEntry()
+              ..coinName = coin.identifier
+              ..address = recipientAddress
+              ..label = "Sent to"
+              ..other = null;
+            final contact = ContactEntry(
+              name: name,
+              addresses: [entry],
+              isFavorite: false,
+              customId: const Uuid().v1(),
+            );
+            await addressBookService.addContact(contact);
+          }
+        }
+      }
+
       if (widget.isTokenTx) {
         if (wallet is SolanaWallet) {
           unawaited(ref.read(pCurrentSolanaTokenWallet)!.refresh());
@@ -841,6 +886,10 @@ class _ConfirmTransactionViewState
     isDesktop = Util.isDesktop;
     walletId = widget.walletId;
     routeOnSuccessName = widget.routeOnSuccessName;
+    _saveRecipientFocusNode = FocusNode();
+    saveRecipientNameController = TextEditingController();
+    saveRecipientNameController.text = "Saved recipient";
+
     _noteFocusNode = FocusNode();
     noteController = TextEditingController();
     noteController.text = widget.txData.note ?? "";
@@ -854,9 +903,11 @@ class _ConfirmTransactionViewState
 
   @override
   void dispose() {
+    saveRecipientNameController.dispose();
     noteController.dispose();
     onChainNoteController.dispose();
 
+    _saveRecipientFocusNode.dispose();
     _noteFocusNode.dispose();
     _onChainNoteFocusNode.dispose();
     super.dispose();
@@ -1147,6 +1198,55 @@ class _ConfirmTransactionViewState
                             widget.txData.note!,
                             style: STextStyles.itemSubtitle12(context),
                           ),
+                        ],
+                      ),
+                    ),
+                  if (!widget.isPaynymTransaction &&
+                      !widget.isTradeTransaction)
+                    const SizedBox(height: 12),
+                  if (!widget.isPaynymTransaction &&
+                      !widget.isTradeTransaction)
+                    RoundedWhiteContainer(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "Save recipient to contacts",
+                                style: STextStyles.smallMed12(context),
+                              ),
+                              SizedBox(
+                                height: 20,
+                                width: 40,
+                                child: Switch(
+                                  value: _saveToAddressBook,
+                                  onChanged: (value) => setState(
+                                    () => _saveToAddressBook = value,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_saveToAddressBook) const SizedBox(height: 8),
+                          if (_saveToAddressBook)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                Constants.size.circularBorderRadius,
+                              ),
+                              child: TextField(
+                                controller: saveRecipientNameController,
+                                focusNode: _saveRecipientFocusNode,
+                                style: STextStyles.field(context),
+                                decoration: standardInputDecoration(
+                                  "Contact name",
+                                  _saveRecipientFocusNode,
+                                  context,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -1619,6 +1719,64 @@ class _ConfirmTransactionViewState
                       ),
                     ),
                     const SizedBox(height: 20),
+                    if (!widget.isPaynymTransaction &&
+                        !widget.isTradeTransaction)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Save recipient to contacts",
+                            style: STextStyles.desktopTextExtraSmall(context)
+                                .copyWith(
+                                  color: Theme.of(context)
+                                      .extension<StackColors>()!
+                                      .textFieldActiveSearchIconRight,
+                                ),
+                          ),
+                          SizedBox(
+                            height: 20,
+                            width: 40,
+                            child: Switch(
+                              value: _saveToAddressBook,
+                              onChanged: (value) =>
+                                  setState(() => _saveToAddressBook = value),
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (!widget.isPaynymTransaction &&
+                        !widget.isTradeTransaction &&
+                        _saveToAddressBook)
+                      const SizedBox(height: 10),
+                    if (!widget.isPaynymTransaction &&
+                        !widget.isTradeTransaction &&
+                        _saveToAddressBook)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          Constants.size.circularBorderRadius,
+                        ),
+                        child: TextField(
+                          controller: saveRecipientNameController,
+                          focusNode: _saveRecipientFocusNode,
+                          autocorrect: isDesktop ? false : true,
+                          enableSuggestions: isDesktop ? false : true,
+                          style: STextStyles.desktopTextExtraSmall(context)
+                              .copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).extension<StackColors>()!.textFieldActiveText,
+                              ),
+                          decoration: standardInputDecoration(
+                            "Contact name",
+                            _saveRecipientFocusNode,
+                            context,
+                            desktopMed: true,
+                          ),
+                        ),
+                      ),
+                    if (!widget.isPaynymTransaction &&
+                        !widget.isTradeTransaction)
+                      const SizedBox(height: 12),
                   ],
                 ),
               ),
