@@ -92,10 +92,10 @@ class _SelectWalletForTokenViewState
       }
     }
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
         ref.read(createSpecialEthWalletRoutingFlag.notifier).state = false;
-        return true;
       },
       child: ConditionalParent(
         condition: !isDesktop,

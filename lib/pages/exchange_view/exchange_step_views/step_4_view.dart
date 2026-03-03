@@ -386,10 +386,13 @@ class _Step4ViewState extends ConsumerState<Step4View> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) {
+          return;
+        }
         await _close();
-        return false;
       },
       child: Background(
         child: Scaffold(

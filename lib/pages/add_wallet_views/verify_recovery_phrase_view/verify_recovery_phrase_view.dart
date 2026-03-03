@@ -458,7 +458,7 @@ class _VerifyRecoveryPhraseViewState
     return Tuple2(result, chosenWord);
   }
 
-  Future<bool> onWillPop() async {
+  Future<void> onPopInvoked() async {
     // await delete();
     Navigator.of(context).popUntil(
       ModalRoute.withName(
@@ -466,7 +466,6 @@ class _VerifyRecoveryPhraseViewState
         NewWalletRecoveryPhraseView.routeName,
       ),
     );
-    return false;
   }
 
   Future<void> delete() async {
@@ -482,8 +481,14 @@ class _VerifyRecoveryPhraseViewState
         .watch(verifyMnemonicWordIndexStateProvider.state)
         .state;
 
-    return WillPopScope(
-      onWillPop: onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) {
+          return;
+        }
+        await onPopInvoked();
+      },
       child: MasterScaffold(
         isDesktop: isDesktop,
         appBar: isDesktop

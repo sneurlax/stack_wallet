@@ -92,10 +92,8 @@ class ConfirmRecoveryDialog extends StatelessWidget {
         ),
       );
     } else {
-      return WillPopScope(
-        onWillPop: () async {
-          return true;
-        },
+      return PopScope(
+        canPop: true,
         child: StackDialog(
           title: "Are you ready?",
           message:

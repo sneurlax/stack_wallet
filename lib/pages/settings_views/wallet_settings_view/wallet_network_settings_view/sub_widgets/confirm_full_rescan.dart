@@ -94,10 +94,8 @@ class ConfirmFullRescanDialog extends StatelessWidget {
         ),
       );
     } else {
-      return WillPopScope(
-        onWillPop: () async {
-          return true;
-        },
+      return PopScope(
+        canPop: true,
         child: StackDialog(
           title: "Rescan blockchain",
           message:

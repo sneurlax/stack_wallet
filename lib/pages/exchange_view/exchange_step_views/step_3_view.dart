@@ -225,8 +225,8 @@ class _Step3ViewState extends ConsumerState<Step3View> {
                                           context: context,
                                           barrierDismissible: false,
                                           builder:
-                                              (_) => WillPopScope(
-                                                onWillPop: () async => false,
+                                              (_) => PopScope(
+                                                canPop: false,
                                                 child: Container(
                                                   color: Theme.of(context)
                                                       .extension<StackColors>()!

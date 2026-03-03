@@ -111,9 +111,17 @@ class _ChurningProgressViewState extends ConsumerState<ChurningProgressView> {
       },
     );
 
-    return WillPopScope(
-      onWillPop: () async {
-        return await _requestAndProcessCancel();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) {
+          return;
+        }
+        if (await _requestAndProcessCancel()) {
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
       },
       child: Background(
         child: Scaffold(

@@ -76,9 +76,11 @@ class _NewWalletRecoveryPhraseViewState
     super.initState();
   }
 
-  Future<bool> onWillPop() async {
+  Future<void> onPopInvoked() async {
     await delete();
-    return true;
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> delete() async {
@@ -104,8 +106,14 @@ class _NewWalletRecoveryPhraseViewState
   @override
   Widget build(BuildContext context) {
     debugPrint("BUILD: $runtimeType");
-    return WillPopScope(
-      onWillPop: onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) {
+          return;
+        }
+        await onPopInvoked();
+      },
       child: MasterScaffold(
         isDesktop: isDesktop,
         appBar: isDesktop

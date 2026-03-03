@@ -118,9 +118,17 @@ class _FusionProgressViewState extends ConsumerState<FusionProgressView> {
 
     WakelockPlus.enable();
 
-    return WillPopScope(
-      onWillPop: () async {
-        return await _requestAndProcessCancel();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) {
+          return;
+        }
+        if (await _requestAndProcessCancel()) {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        }
       },
       child: Background(
         child: Scaffold(

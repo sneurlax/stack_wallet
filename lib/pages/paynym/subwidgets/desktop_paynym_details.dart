@@ -58,14 +58,13 @@ class _PaynymDetailsPopupState extends ConsumerState<DesktopPaynymDetails> {
   bool _showInsufficientFundsInfo = false;
 
   Future<void> _onConnectPressed() async {
-    bool canPop = false;
     unawaited(
       showDialog<void>(
         context: context,
         builder:
-            (context) => WillPopScope(
-              onWillPop: () async => canPop,
-              child: const LoadingIndicator(width: 200),
+            (context) => const PopScope(
+              canPop: false,
+              child: LoadingIndicator(width: 200),
             ),
       ),
     );
@@ -74,7 +73,6 @@ class _PaynymDetailsPopupState extends ConsumerState<DesktopPaynymDetails> {
         ref.read(pWallets).getWallet(widget.walletId) as PaynymInterface;
 
     if (await wallet.hasConnected(widget.accountLite.code)) {
-      canPop = true;
       Navigator.of(context, rootNavigator: true).pop();
       // TODO show info popup
       return;
@@ -91,7 +89,6 @@ class _PaynymDetailsPopupState extends ConsumerState<DesktopPaynymDetails> {
       );
     } on InsufficientBalanceException catch (e) {
       if (mounted) {
-        canPop = true;
         Navigator.of(context, rootNavigator: true).pop();
       }
       setState(() {
@@ -103,7 +100,6 @@ class _PaynymDetailsPopupState extends ConsumerState<DesktopPaynymDetails> {
     if (mounted) {
       // We have enough balance and prepared tx should be good to go.
 
-      canPop = true;
       // close loading
       Navigator.of(context, rootNavigator: true).pop();
 

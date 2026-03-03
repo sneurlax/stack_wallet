@@ -27,10 +27,8 @@ class CancelStackRestoreDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: !Util.isDesktop
           ? StackDialog(
               title: "Cancel restore process",

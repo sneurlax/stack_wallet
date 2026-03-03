@@ -528,10 +528,8 @@ class _LockscreenViewState extends ConsumerState<LockscreenView> {
   Widget build(BuildContext context) {
     return widget.showBackButton
         ? _body
-        : WillPopScope(
-          onWillPop: () async {
-            return widget.showBackButton;
-          },
+        : PopScope(
+          canPop: widget.showBackButton,
           child: _body,
         );
   }

@@ -243,14 +243,16 @@ class _WalletViewState extends ConsumerState<WalletView> {
 
   // DateTime? _cachedTime;
 
-  Future<bool> _onWillPop() async {
+  Future<void> _onPopInvoked() async {
     if (_rescanningOnOpen) {
-      return false;
+      return;
     }
 
     _logout();
 
-    return true;
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
     // final now = DateTime.now();
     // const timeout = Duration(milliseconds: 1500);
     // if (_cachedTime == null || now.difference(_cachedTime!) > timeout) {
@@ -430,16 +432,15 @@ class _WalletViewState extends ConsumerState<WalletView> {
   }
 
   Future<void> attemptAnonymize() async {
-    bool shouldPop = false;
     unawaited(
       showDialog(
         context: context,
-        builder: (context) => WillPopScope(
-          child: const CustomLoadingOverlay(
+        builder: (context) => const PopScope(
+          canPop: false,
+          child: CustomLoadingOverlay(
             message: "Anonymizing balance",
             eventBus: null,
           ),
-          onWillPop: () async => shouldPop,
         ),
       ),
     );
@@ -447,7 +448,6 @@ class _WalletViewState extends ConsumerState<WalletView> {
 
     final Amount publicBalance = wallet.info.cachedBalance.spendable;
     if (publicBalance <= Amount.zero) {
-      shouldPop = true;
       if (mounted) {
         Navigator.of(
           context,
@@ -469,7 +469,6 @@ class _WalletViewState extends ConsumerState<WalletView> {
       } else {
         await (wallet as FiroWallet).anonymizeAllSpark();
       }
-      shouldPop = true;
       if (mounted) {
         Navigator.of(
           context,
@@ -483,7 +482,6 @@ class _WalletViewState extends ConsumerState<WalletView> {
         );
       }
     } catch (e) {
-      shouldPop = true;
       if (mounted) {
         Navigator.of(
           context,
@@ -515,8 +513,8 @@ class _WalletViewState extends ConsumerState<WalletView> {
     return ConditionalParent(
       condition: _rescanningOnOpen,
       builder: (child) {
-        return WillPopScope(
-          onWillPop: () async => !_rescanningOnOpen,
+        return PopScope(
+          canPop: !_rescanningOnOpen,
           child: Stack(
             children: [
               child,
@@ -565,8 +563,14 @@ class _WalletViewState extends ConsumerState<WalletView> {
           ),
         );
       },
-      child: WillPopScope(
-        onWillPop: _onWillPop,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (bool didPop, dynamic result) async {
+          if (didPop) {
+            return;
+          }
+          await _onPopInvoked();
+        },
         child: Background(
           child: Stack(
             children: [

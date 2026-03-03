@@ -64,16 +64,13 @@ class _StackRestoreProgressViewState
   bool isDesktop = Util.isDesktop;
 
   Future<void> _cancel() async {
-    bool shouldPop = false;
     unawaited(
       showDialog<void>(
         barrierDismissible: false,
         context: context,
         builder:
-            (_) => WillPopScope(
-              onWillPop: () async {
-                return shouldPop;
-              },
+            (_) => PopScope(
+              canPop: false,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -101,7 +98,6 @@ class _StackRestoreProgressViewState
     );
 
     await SWB.cancelRestore();
-    shouldPop = true;
 
     int count = 0;
 
@@ -179,18 +175,18 @@ class _StackRestoreProgressViewState
   bool _success = false;
   bool pendingCancel = false;
 
-  Future<bool> _onWillPop() async {
+  Future<void> _onPopInvoked() async {
     if (_success) {
       _addWalletsToHomeView();
-      return true;
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      return;
     }
 
     final shouldCancel = await _requestCancel();
     if (shouldCancel) {
       await _cancel();
-      return true;
-    } else {
-      return false;
     }
   }
 
@@ -245,8 +241,14 @@ class _StackRestoreProgressViewState
     return ConditionalParent(
       condition: !isDesktop,
       builder: (child) {
-        return WillPopScope(
-          onWillPop: _onWillPop,
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (bool didPop, dynamic result) async {
+            if (didPop) {
+              return;
+            }
+            await _onPopInvoked();
+          },
           child: Scaffold(
             backgroundColor:
                 Theme.of(context).extension<StackColors>()!.background,

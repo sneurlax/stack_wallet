@@ -236,13 +236,12 @@ class _DesktopReceiveState extends ConsumerState<DesktopReceive> {
   Future<void> generateNewAddress() async {
     final wallet = ref.read(pWallets).getWallet(walletId);
     if (wallet is MultiAddressInterface) {
-      bool shouldPop = false;
       unawaited(
         showDialog(
           context: context,
           builder: (_) {
-            return WillPopScope(
-              onWillPop: () async => shouldPop,
+            return PopScope(
+              canPop: false,
               child: Container(
                 color: Theme.of(
                   context,
@@ -299,8 +298,6 @@ class _DesktopReceiveState extends ConsumerState<DesktopReceive> {
         address = null;
       }
 
-      shouldPop = true;
-
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
 
@@ -315,13 +312,12 @@ class _DesktopReceiveState extends ConsumerState<DesktopReceive> {
   Future<void> generateNewSparkAddress() async {
     final wallet = ref.read(pWallets).getWallet(walletId);
     if (wallet is SparkInterface) {
-      bool shouldPop = false;
       unawaited(
         showDialog(
           context: context,
           builder: (_) {
-            return WillPopScope(
-              onWillPop: () async => shouldPop,
+            return PopScope(
+              canPop: false,
               child: Container(
                 color: Theme.of(
                   context,
@@ -337,8 +333,6 @@ class _DesktopReceiveState extends ConsumerState<DesktopReceive> {
       );
 
       final address = await wallet.generateNextSparkAddress(saveToDB: true);
-
-      shouldPop = true;
 
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();

@@ -63,10 +63,8 @@ class _RescanningDialogState extends State<RescanningDialog>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        return false;
-      },
+    return PopScope(
+      canPop: false,
       child: ConditionalParent(
         condition: isDesktop,
         builder: (child) => DesktopDialog(
