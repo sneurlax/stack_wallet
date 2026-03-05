@@ -1187,15 +1187,11 @@ abstract class LibWowneroWallet<T extends CryptonoteCurrency>
   @override
   Future<void> checkReceivingAddressForTransactions() async {
     if (info.otherData[WalletInfoKeys.reuseAddress] == true) {
-      try {
-        throw Exception();
-      } catch (_, s) {
-        Logging.instance.e(
-          "checkReceivingAddressForTransactions called but reuse address flag set: $s",
-          error: e,
-          stackTrace: s,
-        );
-      }
+      Logging.instance.e(
+        "checkReceivingAddressForTransactions called but reuse address flag set",
+        error: Exception("reuse address flag set"),
+        stackTrace: StackTrace.current,
+      );
     }
 
     try {
