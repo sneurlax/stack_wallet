@@ -1359,9 +1359,6 @@ abstract class LibSalviumWallet<T extends CryptonoteCurrency>
               pendingSalviumTransaction: pendingTransaction,
             );
           });
-        } catch (e) {
-          rethrow;
-        }
       } else {
         throw ArgumentError("Invalid fee rate argument provided!");
       }

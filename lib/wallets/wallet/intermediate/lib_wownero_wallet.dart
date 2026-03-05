@@ -1371,9 +1371,6 @@ abstract class LibWowneroWallet<T extends CryptonoteCurrency>
               pendingTransaction: pendingTransaction,
             );
           });
-        } catch (e) {
-          rethrow;
-        }
       } else {
         throw ArgumentError("Invalid fee rate argument provided!");
       }
