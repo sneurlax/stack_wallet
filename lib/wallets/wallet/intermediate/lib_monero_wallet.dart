@@ -237,7 +237,6 @@ abstract class LibMoneroWallet<T extends CryptonoteCurrency>
         // TODO log
       }
     }
-    _setListener();
     await csMonero.startListeners(wallet!);
     csMonero.startAutoSaving(wallet!);
 

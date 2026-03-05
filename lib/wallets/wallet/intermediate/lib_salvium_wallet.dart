@@ -233,7 +233,6 @@ abstract class LibSalviumWallet<T extends CryptonoteCurrency>
         // TODO log
       }
     }
-    _setListener();
     csSalvium.startListeners(wallet!);
     csSalvium.startAutoSaving(wallet!);
 

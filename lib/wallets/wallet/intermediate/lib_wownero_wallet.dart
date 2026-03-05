@@ -239,7 +239,6 @@ abstract class LibWowneroWallet<T extends CryptonoteCurrency>
         // TODO log
       }
     }
-    _setListener();
     csWownero.startListeners(wallet!);
     csWownero.startAutoSaving(wallet!);
 
