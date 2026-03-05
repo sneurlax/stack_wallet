@@ -63,6 +63,23 @@ class StartHeightPickerController extends ChangeNotifier {
     _hasBlockHeight = hasBlockHeight;
     notifyListeners();
   }
+
+  /// Called externally (e.g. when a URI containing a height is parsed) to
+  /// programmatically switch the picker to block-height mode and fill in a
+  /// value.  The [StartHeightPicker] widget listens to this controller and
+  /// will update its own UI state accordingly.
+  void setBlockHeight(int height) {
+    _requestedHeight = height;
+    _update(
+      isUsingDate: false,
+      height: height,
+      hasBlockHeight: height > 0,
+    );
+  }
+
+  /// Non-null while a height request from [setBlockHeight] has not yet been
+  /// consumed by the widget.
+  int? _requestedHeight;
 }
 
 /// A self-contained widget that lets the user choose either a calendar date or
@@ -99,6 +116,7 @@ class _StartHeightPickerState extends State<StartHeightPicker> {
     _dateController = TextEditingController();
     _blockHeightController = TextEditingController();
     _blockHeightFocusNode = FocusNode();
+    widget.controller.addListener(_onControllerChanged);
     // Notify the controller after the first frame so that any ListenableBuilder
     // watching it doesn't rebuild during its own build phase.
     WidgetsBinding.instance.addPostFrameCallback((_) => _notifyController());
@@ -106,10 +124,24 @@ class _StartHeightPickerState extends State<StartHeightPicker> {
 
   @override
   void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
     _dateController.dispose();
     _blockHeightController.dispose();
     _blockHeightFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onControllerChanged() {
+    final req = widget.controller._requestedHeight;
+    if (req != null) {
+      widget.controller._requestedHeight = null; // consume
+      setState(() {
+        _isUsingDate = false;
+        _blockHeightController.text = req.toString();
+        _blockFieldEmpty = req == 0;
+      });
+      _notifyController();
+    }
   }
 
   void _notifyController() {

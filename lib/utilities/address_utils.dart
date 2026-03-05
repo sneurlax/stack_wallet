@@ -262,6 +262,43 @@ class AddressUtils {
     return epicAddress;
   }
 
+  /// Parses a wallet URI (e.g. monero_wallet:...) and returns a Map.
+  ///
+  /// Returns null on failure to parse.
+  static Map<String, dynamic>? _parseWalletUri(String uri) {
+    final String scheme;
+    final Map<String, dynamic> parsedData = {};
+
+    final rawScheme = uri.split(":")[0];
+    final normalizedScheme = rawScheme.replaceAll("-", "_");
+    if (normalizedScheme != rawScheme) {
+      uri = normalizedScheme + uri.substring(rawScheme.length);
+    }
+
+    if (uri.split(":")[0].contains("_")) {
+      // RFC 3986 does not allow underscores in the scheme, so strip one for
+      // compatibility with Uri.parse.
+      final String compatibleUri = uri.replaceFirst("_", "");
+      scheme = uri.split(":")[0];
+      parsedData.addAll(_parseUri(compatibleUri));
+    } else {
+      parsedData.addAll(_parseUri(uri));
+      scheme = parsedData['scheme'] as String? ?? '';
+    }
+
+    final possibleCoins = AppConfig.coins.where(
+      (e) => "${e.uriScheme}_wallet".contains(scheme),
+    );
+
+    if (possibleCoins.length != 1) {
+      return null;
+    }
+
+    parsedData["coin"] = possibleCoins.first;
+
+    return parsedData;
+  }
+
   /// Formats an address string to remove any unnecessary prefixes or suffixes.
   String formatAddressMwc(String mimblewimblecoinAddress) {
     // strip http:// or https:// prefixes if the address contains an @ symbol (and is thus an mwcmqs address)
@@ -323,4 +360,120 @@ class PaymentUriData {
       "paymentId: $paymentId, "
       "additionalParams: $additionalParams"
       " }";
+}
+
+class WalletUriData {
+  final CryptoCurrency coin;
+  final String? address;
+  final String? seed;
+  final String? spendKey;
+  final String? viewKey;
+  final int? height;
+  final List<String>? txids;
+
+  bool get isViewOnly => spendKey == null && seed == null;
+
+  WalletUriData({
+    required this.coin,
+    this.address,
+    this.seed,
+    this.spendKey,
+    this.viewKey,
+    this.height,
+    this.txids,
+  });
+
+  factory WalletUriData.fromUriString(String uri) {
+    final map = AddressUtils._parseWalletUri(uri);
+
+    if (map == null) {
+      throw Exception("Invalid wallet URI");
+    }
+
+    return WalletUriData.fromJson(map, map["coin"] as CryptoCurrency);
+  }
+
+  /// Factory constructor with validation logic according to the spec:
+  /// https://github.com/monero-project/monero/wiki/URI-Formatting#wallet-definition-scheme
+  factory WalletUriData.fromJson(
+    Map<String, dynamic> json,
+    CryptoCurrency coin,
+  ) {
+    final address = json["address"] as String?;
+    final spendKey = json["spend_key"] as String?;
+    final viewKey = json["view_key"] as String?;
+    final seed = json["seed"] as String?;
+    final height = json["height"] != null
+        ? int.tryParse(json["height"].toString())
+        : null;
+    final txid = json["txid"] as String?;
+
+    final hasSeed = seed != null;
+    final hasKeys = viewKey != null;
+
+    if (hasSeed && hasKeys) {
+      throw const FormatException(
+        "Invalid: cannot specify both seed and keys.",
+      );
+    }
+    if (!hasSeed && !hasKeys) {
+      throw const FormatException(
+        "Invalid: must specify either seed or view_key.",
+      );
+    }
+
+    if (spendKey != null && viewKey == null) {
+      throw const FormatException("Invalid: spend_key requires view_key.");
+    }
+
+    if (height != null && txid != null) {
+      throw const FormatException(
+        "Invalid: cannot specify both height and txid.",
+      );
+    }
+
+    List<String>? txids;
+    if (txid != null && txid.isNotEmpty) {
+      txids = txid
+          .split(";")
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+
+    return WalletUriData(
+      coin: coin,
+      address: address,
+      spendKey: spendKey,
+      viewKey: viewKey,
+      seed: seed,
+      height: height,
+      txids: txids,
+    );
+  }
+
+  @override
+  String toString() {
+    return "WalletUriData { "
+        "coin: $coin, "
+        "address: $address, "
+        "seed: $seed, "
+        "spendKey: $spendKey, "
+        "viewKey: $viewKey, "
+        "height: $height, "
+        "txids: $txids"
+        " }";
+  }
+
+  String toJson() {
+    return jsonEncode({
+      "coin": coin.prettyName,
+      "address": address,
+      "seed": seed,
+      "spendKey": spendKey,
+      "viewKey": viewKey,
+      "height": height,
+      "txids": txids,
+    });
+  }
 }
