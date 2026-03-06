@@ -198,6 +198,13 @@ class AddressUtils {
   static Map<String, dynamic>? _parseWalletUri(String uri) {
     final String scheme;
     final Map<String, dynamic> parsedData = {};
+
+    final rawScheme = uri.split(":")[0];
+    final normalizedScheme = rawScheme.replaceAll("-", "_");
+    if (normalizedScheme != rawScheme) {
+      uri = normalizedScheme + uri.substring(rawScheme.length);
+    }
+
     if (uri.split(":")[0].contains("_")) {
       // We need to check if the uri is compatible because RFC 3986
       // does not allow underscores in the scheme.
@@ -310,43 +317,6 @@ class AddressUtils {
       epicAddress = epicAddress.substring(0, epicAddress.length - 1);
     }
     return epicAddress;
-  }
-
-  /// Parses a wallet URI (e.g. monero_wallet:...) and returns a Map.
-  ///
-  /// Returns null on failure to parse.
-  static Map<String, dynamic>? _parseWalletUri(String uri) {
-    final String scheme;
-    final Map<String, dynamic> parsedData = {};
-
-    final rawScheme = uri.split(":")[0];
-    final normalizedScheme = rawScheme.replaceAll("-", "_");
-    if (normalizedScheme != rawScheme) {
-      uri = normalizedScheme + uri.substring(rawScheme.length);
-    }
-
-    if (uri.split(":")[0].contains("_")) {
-      // RFC 3986 does not allow underscores in the scheme, so strip one for
-      // compatibility with Uri.parse.
-      final String compatibleUri = uri.replaceFirst("_", "");
-      scheme = uri.split(":")[0];
-      parsedData.addAll(_parseUri(compatibleUri));
-    } else {
-      parsedData.addAll(_parseUri(uri));
-      scheme = parsedData['scheme'] as String? ?? '';
-    }
-
-    final possibleCoins = AppConfig.coins.where(
-      (e) => "${e.uriScheme}_wallet".contains(scheme),
-    );
-
-    if (possibleCoins.length != 1) {
-      return null;
-    }
-
-    parsedData["coin"] = possibleCoins.first;
-
-    return parsedData;
   }
 
   /// Formats an address string to remove any unnecessary prefixes or suffixes.
