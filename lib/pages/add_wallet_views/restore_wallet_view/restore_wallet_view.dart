@@ -80,6 +80,7 @@ class RestoreWalletView extends ConsumerStatefulWidget {
     required this.seedWordsLength,
     required this.mnemonicPassphrase,
     required this.restoreBlockHeight,
+    this.initialMnemonic,
     this.clipboard = const ClipboardWrapper(),
   });
 
@@ -90,6 +91,7 @@ class RestoreWalletView extends ConsumerStatefulWidget {
   final String mnemonicPassphrase;
   final int seedWordsLength;
   final int restoreBlockHeight;
+  final String? initialMnemonic;
 
   final ClipboardInterface clipboard;
 
@@ -161,6 +163,12 @@ class _RestoreWalletViewState extends ConsumerState<RestoreWalletView> {
       _controllers.add(TextEditingController());
       _inputStatuses.add(FormInputStatus.empty);
       // _focusNodes.add(FocusNode());
+    }
+
+    if (widget.initialMnemonic != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _clearAndPopulateMnemonic(widget.initialMnemonic!.split(' '));
+      });
     }
 
     super.initState();
