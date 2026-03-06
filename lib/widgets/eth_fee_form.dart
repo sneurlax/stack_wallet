@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/global/locale_provider.dart';
 import '../services/ethereum/ethereum_api.dart';
 import '../themes/stack_colors.dart';
 import '../utilities/constants.dart';
@@ -35,7 +37,7 @@ class EthEIP1559Fee {
       "gasLimit: $gasLimit)";
 }
 
-class EthFeeForm extends StatefulWidget {
+class EthFeeForm extends ConsumerStatefulWidget {
   EthFeeForm({
     super.key,
     this.minGasLimit = 21000,
@@ -56,10 +58,10 @@ class EthFeeForm extends StatefulWidget {
   final void Function(EthEIP1559Fee) stateChanged;
 
   @override
-  State<EthFeeForm> createState() => _EthFeeFormState();
+  ConsumerState<EthFeeForm> createState() => _EthFeeFormState();
 }
 
-class _EthFeeFormState extends State<EthFeeForm> {
+class _EthFeeFormState extends ConsumerState<EthFeeForm> {
   static const _textFadeDuration = Duration(milliseconds: 300);
 
   final maxBaseController = TextEditingController();
@@ -71,11 +73,29 @@ class _EthFeeFormState extends State<EthFeeForm> {
 
   late int _gasLimitCache;
 
+  /// Normalize a numeric input string using the active locale's decimal and
+  /// group separators so that it can be parsed by [Decimal]/[int], which only
+  /// understand a "." decimal point and no group separators. This preserves
+  /// full precision (gwei needs up to 9 decimal places).
+  String _normalizeForParsing(String value) {
+    final locale = ref.read(localeServiceChangeNotifierProvider).locale;
+    final numberSymbols = Util.getSymbolsFor(locale: locale);
+    final groupSeparator = numberSymbols?.GROUP_SEP ?? ",";
+    final decimalSeparator = numberSymbols?.DECIMAL_SEP ?? ".";
+
+    return value
+        .replaceAll(groupSeparator, "")
+        .replaceFirst(decimalSeparator, ".");
+  }
+
   EthEIP1559Fee get _current => EthEIP1559Fee(
-    maxBaseFeeGwei: Decimal.tryParse(maxBaseController.text) ?? Decimal.zero,
+    maxBaseFeeGwei:
+        Decimal.tryParse(_normalizeForParsing(maxBaseController.text)) ??
+        Decimal.zero,
     priorityFeeGwei:
-        Decimal.tryParse(priorityFeeController.text) ?? Decimal.zero,
-    gasLimit: int.parse(gasLimitController.text),
+        Decimal.tryParse(_normalizeForParsing(priorityFeeController.text)) ??
+        Decimal.zero,
+    gasLimit: int.parse(_normalizeForParsing(gasLimitController.text)),
   );
 
   String _currentBase = "Current: ";
@@ -267,7 +287,7 @@ class _EthFeeFormState extends State<EthFeeForm> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             focusNode: gasLimitFocus,
             onChanged: (value) {
-              final intValue = int.tryParse(value);
+              final intValue = int.tryParse(_normalizeForParsing(value));
               if (intValue == null ||
                   intValue < widget.minGasLimit ||
                   intValue > widget.maxGasLimit) {

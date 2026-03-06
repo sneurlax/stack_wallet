@@ -31,6 +31,8 @@ import '../../services/buy/buy_response.dart';
 import '../../services/buy/simplex/simplex_api.dart';
 import '../../themes/stack_colors.dart';
 import '../../utilities/address_utils.dart';
+import '../../utilities/amount/amount.dart';
+import '../../utilities/amount/amount_formatter.dart';
 import '../../utilities/assets.dart';
 import '../../utilities/barcode_scanner_interface.dart';
 import '../../utilities/clipboard_interface.dart';
@@ -124,6 +126,30 @@ class _BuyFormState extends ConsumerState<BuyForm> {
   // static Decimal maxCrypto = Decimal.parse((10000.00000000).toString());
   // static String boundedCryptoTicker = '';
 
+  /// Parse a buy amount string using the active locale's decimal and group
+  /// separators. Fiat amounts are parsed via [Amount.tryParseFiatString];
+  /// crypto amounts reuse the locale-aware [pAmountFormatter] parser so that
+  /// full crypto precision is preserved.
+  Decimal? _tryParseBuyAmount(String value) {
+    if (buyWithFiat) {
+      return Amount.tryParseFiatString(
+        value,
+        locale: ref.read(localeServiceChangeNotifierProvider).locale,
+      )?.decimal;
+    }
+
+    final cc = coin;
+    if (cc != null) {
+      return ref.read(pAmountFormatter(cc)).tryParse(value)?.decimal;
+    }
+
+    // Fall back to fiat-style locale parsing when no coin is available.
+    return Amount.tryParseFiatString(
+      value,
+      locale: ref.read(localeServiceChangeNotifierProvider).locale,
+    )?.decimal;
+  }
+
   String _amountOutOfRangeErrorString = "";
   void validateAmount() {
     if (_buyAmountController.text.isEmpty) {
@@ -133,7 +159,7 @@ class _BuyFormState extends ConsumerState<BuyForm> {
       return;
     }
 
-    final value = Decimal.tryParse(_buyAmountController.text);
+    final value = _tryParseBuyAmount(_buyAmountController.text);
     if (value == null) {
       setState(() {
         _amountOutOfRangeErrorString = "Invalid amount";
@@ -414,11 +440,12 @@ class _BuyFormState extends ConsumerState<BuyForm> {
       crypto: selectedCrypto!,
       fiat: selectedFiat!,
       youPayFiatPrice: buyWithFiat
-          ? Decimal.parse(_buyAmountController.text)
+          ? (_tryParseBuyAmount(_buyAmountController.text) ?? Decimal.zero)
           : Decimal.parse("100"), // dummy value
       youReceiveCryptoAmount: buyWithFiat
           ? Decimal.parse("0.000420282") // dummy value
-          : Decimal.parse(_buyAmountController.text), // Ternary for this
+          : (_tryParseBuyAmount(_buyAmountController.text) ??
+                Decimal.zero), // Ternary for this
       id: "id", // anything; we get an ID back
       receivingAddress: _receiveAddressController.text,
       buyWithFiat: buyWithFiat,
@@ -1123,12 +1150,23 @@ class _BuyFormState extends ConsumerState<BuyForm> {
                                   final ClipboardData? data = await clipboard
                                       .getData(Clipboard.kTextPlain);
 
-                                  final amountString = Decimal.tryParse(
+                                  final amountString = _tryParseBuyAmount(
                                     data?.text ?? "",
                                   );
                                   if (amountString != null) {
+                                    final locale = ref
+                                        .read(
+                                          localeServiceChangeNotifierProvider,
+                                        )
+                                        .locale;
+                                    final decimalSeparator =
+                                        Util.getSymbolsFor(
+                                          locale: locale,
+                                        )?.DECIMAL_SEP ??
+                                        ".";
                                     _buyAmountController.text = amountString
-                                        .toString();
+                                        .toString()
+                                        .replaceFirst(".", decimalSeparator);
 
                                     validateAmount();
                                   }
