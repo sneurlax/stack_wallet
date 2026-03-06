@@ -9,21 +9,14 @@
  */
 
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:tuple/tuple.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 
-import '../../../../models/keys/view_only_wallet_data.dart';
-import '../../../../pages_desktop_specific/desktop_home_view.dart';
 import '../../../../pages_desktop_specific/my_stack_view/exit_to_my_stack_button.dart';
-import '../../../../providers/global/secure_store_provider.dart';
-import '../../../../providers/providers.dart';
 import '../../../../providers/ui/verify_recovery_phrase/mnemonic_word_count_state_provider.dart';
 import '../../../../themes/stack_colors.dart';
 import '../../../../utilities/address_utils.dart';
@@ -34,9 +27,6 @@ import '../../../../utilities/util.dart';
 import '../../../../wallets/crypto_currency/crypto_currency.dart';
 import '../../../../wallets/crypto_currency/interfaces/view_only_option_currency_interface.dart';
 import '../../../../wallets/crypto_currency/intermediate/cryptonote_currency.dart';
-import '../../../../wallets/isar/models/wallet_info.dart';
-import '../../../../wallets/wallet/intermediate/cryptonote_wallet.dart';
-import '../../../../wallets/wallet/wallet.dart';
 import '../../../../widgets/conditional_parent.dart';
 import '../../../../widgets/custom_buttons/app_bar_icon_button.dart';
 import '../../../../widgets/desktop/desktop_app_bar.dart';
@@ -49,15 +39,10 @@ import '../../../../widgets/stack_text_field.dart';
 import '../../../../widgets/start_height_picker.dart';
 import '../../../../widgets/textfield_icon_button.dart';
 import '../../../../widgets/toggle.dart';
-import '../../../home_view/home_view.dart';
 import '../../create_or_restore_wallet_view/sub_widgets/coin_image.dart';
-import '../confirm_recovery_dialog.dart';
 import '../restore_view_only_wallet_view.dart';
 import '../restore_wallet_view.dart';
 import '../sub_widgets/mnemonic_word_count_select_sheet.dart';
-import '../sub_widgets/restore_failed_dialog.dart';
-import '../sub_widgets/restore_succeeded_dialog.dart';
-import '../sub_widgets/restoring_dialog.dart';
 import 'sub_widgets/mobile_mnemonic_length_selector.dart';
 import 'sub_widgets/restore_options_next_button.dart';
 import 'sub_widgets/restore_options_platform_layout.dart';
@@ -155,197 +140,39 @@ class _RestoreOptionsViewState extends ConsumerState<RestoreOptionsView> {
             );
             break;
           case 2: // URI
-            await _attemptUriRestore(height);
+            final data = _uriData!;
+            final restoreHeight = data.height ?? height;
+            if (data.seed != null) {
+              final words = data.seed!.split(' ');
+              await Navigator.of(context).pushNamed(
+                RestoreWalletView.routeName,
+                arguments: (
+                  walletName: walletName,
+                  coin: coin,
+                  seedWordsLength: words.length,
+                  restoreBlockHeight: restoreHeight,
+                  mnemonicPassphrase: '',
+                  initialMnemonic: data.seed!,
+                ),
+              );
+            } else {
+              await Navigator.of(context).pushNamed(
+                RestoreViewOnlyWalletView.routeName,
+                arguments: (
+                  walletName: walletName,
+                  coin: coin,
+                  restoreBlockHeight: restoreHeight,
+                  initialAddress: data.address,
+                  initialViewKey: data.viewKey,
+                  initialSpendKey: data.spendKey,
+                ),
+              );
+            }
             break;
         }
       }
     } finally {
       _nextLock = false;
-    }
-  }
-
-  Future<void> _attemptUriRestore(int fallbackHeight) async {
-    final data = _uriData;
-    if (data == null) return;
-
-    if (!isDesktop) {
-      FocusScope.of(context).unfocus();
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
-
-    if (!mounted) return;
-
-    await showDialog<dynamic>(
-      context: context,
-      useSafeArea: false,
-      barrierDismissible: true,
-      builder: (context) {
-        return ConfirmRecoveryDialog(
-          onConfirm: () => _doUriRestore(data, fallbackHeight),
-        );
-      },
-    );
-  }
-
-  Future<void> _doUriRestore(WalletUriData data, int fallbackHeight) async {
-    if (!Platform.isLinux && !isDesktop) await WakelockPlus.enable();
-
-    final restoreHeight = data.height ?? fallbackHeight;
-
-    try {
-      final Map<String, dynamic> otherDataJson;
-      if (data.seed != null) {
-        otherDataJson = {};
-      } else if (data.isViewOnly) {
-        otherDataJson = {
-          WalletInfoKeys.isViewOnlyKey: true,
-          WalletInfoKeys.viewOnlyTypeIndexKey:
-              ViewOnlyWalletType.cryptonote.index,
-        };
-      } else {
-        otherDataJson = {WalletInfoKeys.isRestoredFromKeysKey: true};
-      }
-
-      final info = WalletInfo.createNew(
-        coin: coin,
-        name: walletName,
-        restoreHeight: restoreHeight,
-        otherDataJsonString: jsonEncode(otherDataJson),
-      );
-
-      bool isRestoring = true;
-      if (mounted) {
-        unawaited(
-          showDialog<dynamic>(
-            context: context,
-            useSafeArea: false,
-            barrierDismissible: false,
-            builder: (context) {
-              return RestoringDialog(
-                onCancel: () async {
-                  isRestoring = false;
-                  await ref
-                      .read(pWallets)
-                      .deleteWallet(info, ref.read(secureStoreProvider));
-                },
-              );
-            },
-          ),
-        );
-      }
-
-      try {
-        var node = ref
-            .read(nodeServiceChangeNotifierProvider)
-            .getPrimaryNodeFor(currency: coin);
-
-        if (node == null) {
-          node = coin.defaultNode(isPrimary: true);
-          await ref
-              .read(nodeServiceChangeNotifierProvider)
-              .save(node, null, false);
-        }
-
-        final Wallet wallet;
-        if (data.seed != null) {
-          wallet = await Wallet.create(
-            walletInfo: info,
-            mainDB: ref.read(mainDBProvider),
-            secureStorageInterface: ref.read(secureStoreProvider),
-            nodeService: ref.read(nodeServiceChangeNotifierProvider),
-            prefs: ref.read(prefsChangeNotifierProvider),
-            mnemonic: data.seed,
-          );
-        } else if (data.isViewOnly) {
-          final viewOnlyData = CryptonoteViewOnlyWalletData(
-            walletId: info.walletId,
-            address: data.address ?? "",
-            privateViewKey: data.viewKey!,
-          );
-          wallet = await Wallet.create(
-            walletInfo: info,
-            mainDB: ref.read(mainDBProvider),
-            secureStorageInterface: ref.read(secureStoreProvider),
-            nodeService: ref.read(nodeServiceChangeNotifierProvider),
-            prefs: ref.read(prefsChangeNotifierProvider),
-            viewOnlyData: viewOnlyData,
-          );
-        } else {
-          final keysRestoreData = jsonEncode({
-            "address": data.address ?? "",
-            "viewKey": data.viewKey!,
-            "spendKey": data.spendKey!,
-          });
-          wallet = await Wallet.create(
-            walletInfo: info,
-            mainDB: ref.read(mainDBProvider),
-            secureStorageInterface: ref.read(secureStoreProvider),
-            nodeService: ref.read(nodeServiceChangeNotifierProvider),
-            prefs: ref.read(prefsChangeNotifierProvider),
-            keysRestoreData: keysRestoreData,
-          );
-        }
-
-        if (wallet is CryptonoteWallet) {
-          await wallet.init(isRestore: true);
-        } else {
-          await wallet.init();
-        }
-
-        await wallet.recover(isRescan: false);
-
-        if (mounted) {
-          await wallet.info.setMnemonicVerified(
-            isar: ref.read(mainDBProvider).isar,
-          );
-
-          if (ref.read(pDuress)) {
-            await wallet.info.updateDuressVisibilityStatus(
-              isDuressVisible: true,
-              isar: ref.read(mainDBProvider).isar,
-            );
-          }
-
-          ref.read(pWallets).addWallet(wallet);
-
-          if (mounted) {
-            if (isDesktop) {
-              Navigator.of(
-                context,
-              ).popUntil(ModalRoute.withName(DesktopHomeView.routeName));
-            } else {
-              unawaited(
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil(HomeView.routeName, (route) => false),
-              );
-            }
-
-            await showDialog<dynamic>(
-              context: context,
-              useSafeArea: false,
-              barrierDismissible: true,
-              builder: (context) => const RestoreSucceededDialog(),
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted && isRestoring) {
-          Navigator.pop(context);
-          await showDialog<dynamic>(
-            context: context,
-            useSafeArea: false,
-            barrierDismissible: true,
-            builder: (context) => RestoreFailedDialog(
-              errorMessage: e.toString(),
-              walletId: info.walletId,
-              walletName: info.name,
-            ),
-          );
-        }
-      }
-    } finally {
-      if (!Platform.isLinux && !isDesktop) await WakelockPlus.disable();
     }
   }
 
@@ -868,26 +695,27 @@ class _UriRestoreOptionState extends ConsumerState<UriRestoreOption> {
             style: Util.isDesktop
                 ? STextStyles.desktopTextMedium(context).copyWith(height: 2)
                 : STextStyles.field(context),
-            decoration: standardInputDecoration(
-              "monero_wallet:<address>?seed=...",
-              FocusNode(),
-              context,
-            ).copyWith(
-              suffixIcon: UnconstrainedBox(
-                child: TextFieldIconButton(
-                  child: _uriController.text.isNotEmpty
-                      ? XIcon(
-                          width: Util.isDesktop ? 24 : 16,
-                          height: Util.isDesktop ? 24 : 16,
-                        )
-                      : const SizedBox.shrink(),
-                  onTap: () {
-                    _uriController.clear();
-                    _onUriChanged("");
-                  },
+            decoration:
+                standardInputDecoration(
+                  "monero_wallet:<address>?seed=...",
+                  FocusNode(),
+                  context,
+                ).copyWith(
+                  suffixIcon: UnconstrainedBox(
+                    child: TextFieldIconButton(
+                      child: _uriController.text.isNotEmpty
+                          ? XIcon(
+                              width: Util.isDesktop ? 24 : 16,
+                              height: Util.isDesktop ? 24 : 16,
+                            )
+                          : const SizedBox.shrink(),
+                      onTap: () {
+                        _uriController.clear();
+                        _onUriChanged("");
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ),
             maxLines: 3,
             minLines: 1,
             onChanged: _onUriChanged,

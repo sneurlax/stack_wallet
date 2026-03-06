@@ -1907,6 +1907,27 @@ class RouteGenerator {
             ),
             settings: RouteSettings(name: settings.name),
           );
+        } else if (args
+            is ({
+              String walletName,
+              CryptoCurrency coin,
+              int seedWordsLength,
+              int restoreBlockHeight,
+              String mnemonicPassphrase,
+              String initialMnemonic,
+            })) {
+          return getRoute(
+            shouldUseMaterialRoute: useMaterialPageRoute,
+            builder: (_) => RestoreWalletView(
+              walletName: args.walletName,
+              coin: args.coin,
+              seedWordsLength: args.seedWordsLength,
+              restoreBlockHeight: args.restoreBlockHeight,
+              mnemonicPassphrase: args.mnemonicPassphrase,
+              initialMnemonic: args.initialMnemonic,
+            ),
+            settings: RouteSettings(name: settings.name),
+          );
         }
         return _routeError("${settings.name} invalid args: ${args.toString()}");
 
@@ -1923,6 +1944,27 @@ class RouteGenerator {
               walletName: args.walletName,
               coin: args.coin,
               restoreBlockHeight: args.restoreBlockHeight,
+            ),
+            settings: RouteSettings(name: settings.name),
+          );
+        } else if (args
+            is ({
+              String walletName,
+              CryptoCurrency coin,
+              int restoreBlockHeight,
+              String? initialAddress,
+              String? initialViewKey,
+              String? initialSpendKey,
+            })) {
+          return getRoute(
+            shouldUseMaterialRoute: useMaterialPageRoute,
+            builder: (_) => RestoreViewOnlyWalletView(
+              walletName: args.walletName,
+              coin: args.coin,
+              restoreBlockHeight: args.restoreBlockHeight,
+              initialAddress: args.initialAddress,
+              initialViewKey: args.initialViewKey,
+              initialSpendKey: args.initialSpendKey,
             ),
             settings: RouteSettings(name: settings.name),
           );
