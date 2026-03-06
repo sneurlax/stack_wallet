@@ -27,10 +27,49 @@ class AmountInputFormatter extends TextInputFormatter {
     final decimalSeparator = numberSymbols?.DECIMAL_SEP ?? ".";
     final groupSeparator = numberSymbols?.GROUP_SEP ?? ",";
 
-    String newText = newValue.text.replaceAll(groupSeparator, "");
+    // Detect paste: new text is significantly longer than old text.
+    // Normalize pasted values that may use a different locale's separators.
+    TextEditingValue valueToProcess = newValue;
+    if (newValue.text.length - oldValue.text.length > 1) {
+      String pasted = newValue.text;
+      final hasDots = pasted.contains(".");
+      final hasCommas = pasted.contains(",");
+
+      if (hasDots && hasCommas) {
+        // Both separators present: the last occurrence is the decimal sep.
+        final lastDot = pasted.lastIndexOf(".");
+        final lastComma = pasted.lastIndexOf(",");
+        if (lastDot > lastComma) {
+          pasted = pasted.replaceAll(",", "");
+          pasted = pasted.replaceFirst(".", decimalSeparator);
+        } else {
+          pasted = pasted.replaceAll(".", "");
+          pasted = pasted.replaceFirst(",", decimalSeparator);
+        }
+      } else if (hasDots && !hasCommas && decimalSeparator == ",") {
+        if (".".allMatches(pasted).length == 1) {
+          pasted = pasted.replaceFirst(".", decimalSeparator);
+        } else {
+          pasted = pasted.replaceAll(".", "");
+        }
+      } else if (hasCommas && !hasDots && decimalSeparator == ".") {
+        if (",".allMatches(pasted).length == 1) {
+          pasted = pasted.replaceFirst(",", decimalSeparator);
+        } else {
+          pasted = pasted.replaceAll(",", "");
+        }
+      }
+
+      valueToProcess = TextEditingValue(
+        text: pasted,
+        selection: TextSelection.collapsed(offset: pasted.length),
+      );
+    }
+
+    String newText = valueToProcess.text.replaceAll(groupSeparator, "");
 
     final selectionIndexFromTheRight =
-        newValue.text.length - newValue.selection.end;
+        valueToProcess.text.length - valueToProcess.selection.end;
 
     String? fraction;
     if (newText.contains(decimalSeparator)) {
@@ -40,8 +79,9 @@ class AmountInputFormatter extends TextInputFormatter {
         return oldValue;
       }
 
-      final fractionDigits =
-          unit == null ? decimals : max(decimals - unit!.shift, 0);
+      final fractionDigits = unit == null
+          ? decimals
+          : max(decimals - unit!.shift, 0);
 
       if (newText.startsWith(decimalSeparator)) {
         if (newText.length - 1 > fractionDigits) {
