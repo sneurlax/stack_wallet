@@ -48,6 +48,9 @@ class RestoreViewOnlyWalletView extends ConsumerStatefulWidget {
     required this.walletName,
     required this.coin,
     required this.restoreBlockHeight,
+    this.initialAddress,
+    this.initialViewKey,
+    this.initialSpendKey,
     this.clipboard = const ClipboardWrapper(),
   });
 
@@ -56,6 +59,9 @@ class RestoreViewOnlyWalletView extends ConsumerStatefulWidget {
   final String walletName;
   final CryptoCurrency coin;
   final int restoreBlockHeight;
+  final String? initialAddress;
+  final String? initialViewKey;
+  final String? initialSpendKey;
   final ClipboardInterface clipboard;
 
   @override
@@ -102,21 +108,23 @@ class _RestoreViewOnlyWalletViewState
   }
 
   Future<void> _attemptRestore() async {
-    final Map<String, dynamic> otherDataJson = {
-      WalletInfoKeys.isViewOnlyKey: true,
-    };
+    final bool isKeysRestore = widget.initialSpendKey != null;
 
-    ViewOnlyWalletType viewOnlyWalletType = _walletType;
-    if (widget.coin is Bip39HDCurrency) {
-      // already set above
-    } else if (widget.coin is CryptonoteCurrency) {
-      viewOnlyWalletType = ViewOnlyWalletType.cryptonote;
+    final Map<String, dynamic> otherDataJson;
+    if (isKeysRestore) {
+      otherDataJson = {WalletInfoKeys.isRestoredFromKeysKey: true};
     } else {
-      throw Exception(
-        "Unsupported view only wallet currency type found: ${widget.coin.runtimeType}",
-      );
+      otherDataJson = {WalletInfoKeys.isViewOnlyKey: true};
+
+      if (widget.coin is! Bip39HDCurrency &&
+          widget.coin is! CryptonoteCurrency) {
+        throw Exception(
+          "Unsupported view only wallet currency type found:"
+          " ${widget.coin.runtimeType}",
+        );
+      }
+      otherDataJson[WalletInfoKeys.viewOnlyTypeIndexKey] = _walletType.index;
     }
-    otherDataJson[WalletInfoKeys.viewOnlyTypeIndexKey] = _walletType.index;
 
     if (!Platform.isLinux && !Util.isDesktop) await WakelockPlus.enable();
 
@@ -126,7 +134,11 @@ class _RestoreViewOnlyWalletViewState
         name: widget.walletName,
         restoreHeight: widget.restoreBlockHeight,
         otherDataJsonString: jsonEncode(otherDataJson),
-        overrideAddressType: viewOnlyWalletType == .spark ? .spark : null,
+        overrideAddressType: isKeysRestore
+            ? null
+            : _walletType == .spark
+            ? .spark
+            : null,
       );
 
       bool isRestoring = true;
@@ -153,53 +165,6 @@ class _RestoreViewOnlyWalletViewState
         );
       }
 
-      final ViewOnlyWalletData viewOnlyData;
-      switch (viewOnlyWalletType) {
-        case ViewOnlyWalletType.cryptonote:
-          if (addressController.text.isEmpty ||
-              viewKeyController.text.isEmpty) {
-            throw Exception("Missing address and/or private view key fields");
-          }
-          viewOnlyData = CryptonoteViewOnlyWalletData(
-            walletId: info.walletId,
-            address: addressController.text,
-            privateViewKey: viewKeyController.text,
-          );
-          break;
-
-        case ViewOnlyWalletType.addressOnly:
-          if (addressController.text.isEmpty) {
-            throw Exception("Address is empty");
-          }
-          viewOnlyData = AddressViewOnlyWalletData(
-            walletId: info.walletId,
-            address: addressController.text,
-          );
-          break;
-
-        case ViewOnlyWalletType.xPub:
-          viewOnlyData = ExtendedKeysViewOnlyWalletData(
-            walletId: info.walletId,
-            xPubs: [
-              XPub(
-                path: _currentDropDownValue,
-                encoded: viewKeyController.text,
-              ),
-            ],
-          );
-          break;
-
-        case ViewOnlyWalletType.spark:
-          if (sparkViewKeyController.text.isEmpty) {
-            throw Exception("Spark View Key is empty");
-          }
-          viewOnlyData = SparkViewOnlyWalletData(
-            walletId: info.walletId,
-            viewKey: sparkViewKeyController.text,
-          );
-          break;
-      }
-
       var node = ref
           .read(nodeServiceChangeNotifierProvider)
           .getPrimaryNodeFor(currency: widget.coin);
@@ -212,14 +177,80 @@ class _RestoreViewOnlyWalletViewState
       }
 
       try {
-        final wallet = await Wallet.create(
-          walletInfo: info,
-          mainDB: ref.read(mainDBProvider),
-          secureStorageInterface: ref.read(secureStoreProvider),
-          nodeService: ref.read(nodeServiceChangeNotifierProvider),
-          prefs: ref.read(prefsChangeNotifierProvider),
-          viewOnlyData: viewOnlyData,
-        );
+        final Wallet wallet;
+        if (isKeysRestore) {
+          final keysRestoreData = jsonEncode({
+            "address": addressController.text,
+            "viewKey": viewKeyController.text,
+            "spendKey": widget.initialSpendKey!,
+          });
+          wallet = await Wallet.create(
+            walletInfo: info,
+            mainDB: ref.read(mainDBProvider),
+            secureStorageInterface: ref.read(secureStoreProvider),
+            nodeService: ref.read(nodeServiceChangeNotifierProvider),
+            prefs: ref.read(prefsChangeNotifierProvider),
+            keysRestoreData: keysRestoreData,
+          );
+        } else {
+          final ViewOnlyWalletData viewOnlyData;
+          switch (_walletType) {
+            case ViewOnlyWalletType.cryptonote:
+              if (addressController.text.isEmpty ||
+                  viewKeyController.text.isEmpty) {
+                throw Exception(
+                  "Missing address and/or private view key fields",
+                );
+              }
+              viewOnlyData = CryptonoteViewOnlyWalletData(
+                walletId: info.walletId,
+                address: addressController.text,
+                privateViewKey: viewKeyController.text,
+              );
+              break;
+
+            case ViewOnlyWalletType.addressOnly:
+              if (addressController.text.isEmpty) {
+                throw Exception("Address is empty");
+              }
+              viewOnlyData = AddressViewOnlyWalletData(
+                walletId: info.walletId,
+                address: addressController.text,
+              );
+              break;
+
+            case ViewOnlyWalletType.xPub:
+              viewOnlyData = ExtendedKeysViewOnlyWalletData(
+                walletId: info.walletId,
+                xPubs: [
+                  XPub(
+                    path: _currentDropDownValue,
+                    encoded: viewKeyController.text,
+                  ),
+                ],
+              );
+              break;
+
+            case ViewOnlyWalletType.spark:
+              if (sparkViewKeyController.text.isEmpty) {
+                throw Exception("Spark View Key is empty");
+              }
+              viewOnlyData = SparkViewOnlyWalletData(
+                walletId: info.walletId,
+                viewKey: sparkViewKeyController.text,
+              );
+              break;
+          }
+
+          wallet = await Wallet.create(
+            walletInfo: info,
+            mainDB: ref.read(mainDBProvider),
+            secureStorageInterface: ref.read(secureStoreProvider),
+            nodeService: ref.read(nodeServiceChangeNotifierProvider),
+            prefs: ref.read(prefsChangeNotifierProvider),
+            viewOnlyData: viewOnlyData,
+          );
+        }
 
         // TODO: extract interface with isRestore param
         switch (wallet) {
@@ -314,8 +345,12 @@ class _RestoreViewOnlyWalletViewState
   @override
   void initState() {
     super.initState();
-    addressController = TextEditingController();
-    viewKeyController = TextEditingController();
+    addressController = TextEditingController(
+      text: widget.initialAddress ?? '',
+    );
+    viewKeyController = TextEditingController(
+      text: widget.initialViewKey ?? '',
+    );
     sparkViewKeyController = TextEditingController();
 
     if (widget.coin is Bip39HDCurrency) {
@@ -325,6 +360,10 @@ class _RestoreViewOnlyWalletViewState
       _walletType = ViewOnlyWalletType.xPub;
     } else if (widget.coin is CryptonoteCurrency) {
       _walletType = ViewOnlyWalletType.cryptonote;
+    }
+
+    if (widget.initialAddress != null || widget.initialViewKey != null) {
+      _enableRestoreButton = true;
     }
   }
 
