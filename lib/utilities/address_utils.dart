@@ -27,6 +27,7 @@ class AddressUtils {
   };
 
   static String condenseAddress(String address) {
+    if (address.length < 10) return address;
     return '${address.substring(0, 5)}...${address.substring(address.length - 5)}';
   }
 
@@ -85,34 +86,51 @@ class AddressUtils {
     return result;
   }
 
+  /// Strips surrounding single or double quotes from a string.
+  static String _stripQuotes(String value) {
+    if (value.length >= 2 &&
+        ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'")))) {
+      return value.substring(1, value.length - 1);
+    }
+    return value;
+  }
+
   /// Helper method to parse and normalize query parameters.
+  ///
+  /// Keys are lowercased and dashes are replaced with underscores so that
+  /// e.g. `spend-key` and `spend_key` are treated identically.
+  /// Surrounding quotation marks on values are stripped.
   static Map<String, String> _parseQueryParameters(Map<String, String> params) {
     final Map<String, String> result = {};
     params.forEach((key, value) {
-      final lowerKey = key.toLowerCase();
-      if (recognizedParams.contains(lowerKey)) {
-        switch (lowerKey) {
+      // Normalize: lowercase + dashes -> underscores.
+      final normalizedKey = key.toLowerCase().replaceAll('-', '_');
+      final strippedValue = _stripQuotes(value);
+
+      if (recognizedParams.contains(normalizedKey)) {
+        switch (normalizedKey) {
           case 'amount':
           case 'tx_amount':
-            result['amount'] = _normalizeAmount(value);
+            result['amount'] = _normalizeAmount(strippedValue);
             break;
           case 'label':
           case 'recipient_name':
-            result['label'] = Uri.decodeComponent(value);
+            result['label'] = Uri.decodeComponent(strippedValue);
             break;
           case 'message':
           case 'tx_description':
-            result['message'] = Uri.decodeComponent(value);
+            result['message'] = Uri.decodeComponent(strippedValue);
             break;
           case 'tx_payment_id':
-            result['tx_payment_id'] = Uri.decodeComponent(value);
+            result['tx_payment_id'] = Uri.decodeComponent(strippedValue);
             break;
           default:
-            result[lowerKey] = Uri.decodeComponent(value);
+            result[normalizedKey] = Uri.decodeComponent(strippedValue);
         }
       } else {
-        // Include unrecognized parameters as-is.
-        result[key] = Uri.decodeComponent(value);
+        // Include unrecognized parameters with normalized key.
+        result[normalizedKey] = Uri.decodeComponent(strippedValue);
       }
     });
     return result;
@@ -172,6 +190,38 @@ class AddressUtils {
       logging?.i("Invalid payment URI: $uri", error: e, stackTrace: s);
       return null;
     }
+  }
+
+  /// Parses a wallet URI and returns a Map.
+  ///
+  /// Returns null on failure to parse.
+  static Map<String, dynamic>? _parseWalletUri(String uri) {
+    final String scheme;
+    final Map<String, dynamic> parsedData = {};
+    if (uri.split(":")[0].contains("_")) {
+      // We need to check if the uri is compatible because RFC 3986
+      // does not allow underscores in the scheme.
+      final String compatibleUri = uri.replaceFirst("_", "");
+      scheme = uri.split(":")[0];
+      parsedData.addAll(_parseUri(compatibleUri));
+    } else {
+      parsedData.addAll(_parseUri(uri));
+      scheme = parsedData['scheme'] as String? ?? '';
+    }
+
+    // not sure this is the best way to handle this but will leave
+    // as is for now
+    final possibleCoins = AppConfig.coins.where(
+      (e) => "${e.uriScheme}_wallet".contains(scheme),
+    );
+
+    if (possibleCoins.length != 1) {
+      return null;
+    }
+
+    parsedData["coin"] = possibleCoins.first;
+
+    return parsedData;
   }
 
   /// Builds a uri string with the given address and query parameters (if any)
@@ -408,6 +458,8 @@ class WalletUriData {
         : null;
     final txid = json["txid"] as String?;
 
+    // Must have seed XOR view_key (spend_key is optional).
+    // May have seed only, view_key + spend_key, or view_key only.
     final hasSeed = seed != null;
     final hasKeys = viewKey != null;
 
@@ -422,16 +474,19 @@ class WalletUriData {
       );
     }
 
+    // Spend_key requires view_key.
     if (spendKey != null && viewKey == null) {
       throw const FormatException("Invalid: spend_key requires view_key.");
     }
 
+    // Height requires absence of txid.
     if (height != null && txid != null) {
       throw const FormatException(
         "Invalid: cannot specify both height and txid.",
       );
     }
 
+    // Parse txids if present.
     List<String>? txids;
     if (txid != null && txid.isNotEmpty) {
       txids = txid
