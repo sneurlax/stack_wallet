@@ -66,6 +66,14 @@ jobs:
         run: bash prebuild.sh
         working-directory: scripts
 
+      - name: Verify committed mocks are up to date
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          if ! git diff --exit-code -- '*.mocks.dart'; then
+            echo "Committed mocks are out of date. Run 'dart run build_runner build --delete-conflicting-outputs' locally and commit the regenerated files."
+            exit 1
+          fi
+
       - name: Check formatting of changed files
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
