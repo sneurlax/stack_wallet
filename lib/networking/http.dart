@@ -75,7 +75,7 @@ class HTTP {
         headers.forEach((key, value) => request.headers.add(key, value));
       }
 
-      request.write(body);
+      _writeBody(request, body, encoding);
 
       final response = await request.close();
       return Response(await _bodyBytes(response), response.statusCode);
@@ -91,6 +91,7 @@ class HTTP {
     required Uri url,
     Map<String, String>? headers,
     Object? body,
+    Encoding? encoding,
     required ({InternetAddress host, int port})? proxyInfo,
   }) async {
     final httpClient = HttpClient();
@@ -106,7 +107,7 @@ class HTTP {
         headers.forEach((key, value) => request.headers.add(key, value));
       }
 
-      request.write(body);
+      _writeBody(request, body, encoding);
 
       final response = await request.close();
       return Response(await _bodyBytes(response), response.statusCode);
@@ -116,6 +117,16 @@ class HTTP {
     } finally {
       httpClient.close(force: true);
     }
+  }
+
+  // HttpClientRequest.write defaults to latin1, which mangles any string body
+  // containing non-ASCII (e.g. the U+00B1 in "+- 1 day" sneaks through as a
+  // bare 0xB1 byte and the server's UTF-8 JSON parser rejects it). Default to
+  // utf8 so JSON bodies survive the wire.
+  void _writeBody(HttpClientRequest request, Object? body, Encoding? encoding) {
+    if (body == null) return;
+    request.encoding = encoding ?? utf8;
+    request.write(body);
   }
 
   Future<Response> delete({
