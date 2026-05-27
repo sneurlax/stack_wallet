@@ -163,9 +163,7 @@ class _StartHeightPickerState extends State<StartHeightPicker> {
           height = csWownero.getHeightByDate(date);
         }
         if (widget.coin is Salvium) {
-          height = csSalvium.getHeightByDate(
-            DateTime.now().subtract(const Duration(days: 7)),
-          );
+          height = csSalvium.getHeightByDate(date);
         }
         if (height < 0) {
           height = 0;
