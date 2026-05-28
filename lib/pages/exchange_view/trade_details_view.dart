@@ -301,21 +301,18 @@ class _TradeDetailsViewState extends ConsumerState<TradeDetailsView> {
                     "device and you will no longer be able to track its "
                     "status. Proceed only if you know what you are doing.",
           leftButton: TextButton(
-            style: Theme.of(context)
-                .extension<StackColors>()!
-                .getSecondaryEnabledButtonStyle(context),
-            child: Text(
-              "Cancel",
-              style: STextStyles.itemSubtitle12(context),
-            ),
+            style: Theme.of(
+              context,
+            ).extension<StackColors>()!.getSecondaryEnabledButtonStyle(context),
+            child: Text("Cancel", style: STextStyles.itemSubtitle12(context)),
             onPressed: () {
               Navigator.of(context).pop();
             },
           ),
           rightButton: TextButton(
-            style: Theme.of(context)
-                .extension<StackColors>()!
-                .getPrimaryEnabledButtonStyle(context),
+            style: Theme.of(
+              context,
+            ).extension<StackColors>()!.getPrimaryEnabledButtonStyle(context),
             child: Text("Delete", style: STextStyles.button(context)),
             onPressed: () async {
               await ref
