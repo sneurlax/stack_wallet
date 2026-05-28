@@ -79,9 +79,8 @@ class _UtxoRowState extends ConsumerState<UtxoRow> {
   void _details() async {
     await showDialog<String?>(
       context: context,
-      builder:
-          (context) =>
-              UtxoDetailsView(utxoId: utxo.id, walletId: widget.walletId),
+      builder: (context) =>
+          UtxoDetailsView(utxoId: utxo.id, walletId: widget.walletId),
     );
   }
 
@@ -97,11 +96,10 @@ class _UtxoRowState extends ConsumerState<UtxoRow> {
 
   @override
   void initState() {
-    utxo =
-        MainDB.instance.isar.utxos
-            .where()
-            .idEqualTo(widget.data.utxoId)
-            .findFirstSync()!;
+    utxo = MainDB.instance.isar.utxos
+        .where()
+        .idEqualTo(widget.data.utxoId)
+        .findFirstSync()!;
 
     stream = MainDB.instance.watchUTXO(id: utxo.id);
     super.initState();
@@ -123,40 +121,36 @@ class _UtxoRowState extends ConsumerState<UtxoRow> {
         return GestureDetector(
           onTap: _toggleSelected,
           child: RoundedContainer(
-          borderColor:
-              widget.compact && widget.compactWithBorder
-                  ? Theme.of(
-                    context,
-                  ).extension<StackColors>()!.textFieldDefaultBG
-                  : null,
-          color: Theme.of(context).extension<StackColors>()!.popupBG,
-          boxShadow:
-              widget.data.selected && widget.raiseOnSelected
-                  ? [
+            borderColor: widget.compact && widget.compactWithBorder
+                ? Theme.of(context).extension<StackColors>()!.textFieldDefaultBG
+                : null,
+            color: Theme.of(context).extension<StackColors>()!.popupBG,
+            boxShadow: widget.data.selected && widget.raiseOnSelected
+                ? [
                     Theme.of(
                       context,
                     ).extension<StackColors>()!.standardBoxShadow,
                   ]
-                  : null,
-          child: Row(
-            children: [
-              if (!(widget.compact && utxo.isBlocked))
-                Checkbox(
-                  value: widget.data.selected,
-                  onChanged: (value) {
-                    setState(() {
-                      widget.data.selected = value!;
-                    });
-                    widget.onSelectionChanged?.call(widget.data);
-                  },
-                ),
-              if (!(widget.compact && utxo.isBlocked))
-                const SizedBox(width: 10),
-              UTXOStatusIcon(
-                blocked: utxo.isBlocked,
-                status:
-                    (coin is Namecoin
-                            ? (ref.watch(pWallets).getWallet(widget.walletId)
+                : null,
+            child: Row(
+              children: [
+                if (!(widget.compact && utxo.isBlocked))
+                  Checkbox(
+                    value: widget.data.selected,
+                    onChanged: (value) {
+                      setState(() {
+                        widget.data.selected = value!;
+                      });
+                      widget.onSelectionChanged?.call(widget.data);
+                    },
+                  ),
+                if (!(widget.compact && utxo.isBlocked))
+                  const SizedBox(width: 10),
+                UTXOStatusIcon(
+                  blocked: utxo.isBlocked,
+                  status:
+                      (coin is Namecoin
+                          ? (ref.watch(pWallets).getWallet(widget.walletId)
                                     as NamecoinWallet)
                                 .checkUtxoConfirmed(
                                   utxo,
@@ -164,89 +158,92 @@ class _UtxoRowState extends ConsumerState<UtxoRow> {
                                     pWalletChainHeight(widget.walletId),
                                   ),
                                 )
-                            : utxo.isConfirmed(
+                          : utxo.isConfirmed(
                               ref.watch(pWalletChainHeight(widget.walletId)),
                               coin.minConfirms,
                               coin.minCoinbaseConfirms,
                             ))
-                        ? UTXOStatusIconStatus.confirmed
-                        : UTXOStatusIconStatus.unconfirmed,
-                background: Theme.of(context).extension<StackColors>()!.popupBG,
-                selected: false,
-                width: 32,
-                height: 32,
-              ),
-              const SizedBox(width: 10),
-              if (!widget.compact)
-                Text(
-                  ref
-                      .watch(pAmountFormatter(coin))
-                      .format(
-                        Amount(
-                          rawValue: BigInt.from(utxo.value),
-                          fractionDigits: coin.fractionDigits,
-                        ),
-                      ),
-                  textAlign: TextAlign.right,
-                  style: STextStyles.w600_14(context),
+                      ? UTXOStatusIconStatus.confirmed
+                      : UTXOStatusIconStatus.unconfirmed,
+                  background: Theme.of(
+                    context,
+                  ).extension<StackColors>()!.popupBG,
+                  selected: false,
+                  width: 32,
+                  height: 32,
                 ),
-              if (!widget.compact) const SizedBox(width: 10),
-              Expanded(
-                child: ConditionalParent(
-                  condition: widget.compact,
-                  builder: (child) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          ref
-                              .watch(pAmountFormatter(coin))
-                              .format(
-                                Amount(
-                                  rawValue: BigInt.from(utxo.value),
-                                  fractionDigits: coin.fractionDigits,
-                                ),
-                              ),
-                          textAlign: TextAlign.right,
-                          style: STextStyles.w600_14(context),
+                const SizedBox(width: 10),
+                if (!widget.compact)
+                  Text(
+                    ref
+                        .watch(pAmountFormatter(coin))
+                        .format(
+                          Amount(
+                            rawValue: BigInt.from(utxo.value),
+                            fractionDigits: coin.fractionDigits,
+                          ),
                         ),
-                        const SizedBox(height: 2),
-                        child,
-                      ],
-                    );
-                  },
-                  child: Text(
-                    utxo.name.isNotEmpty
-                        ? utxo.name
-                        : utxo.address ?? utxo.txid,
-                    textAlign:
-                        widget.compact ? TextAlign.left : TextAlign.center,
-                    style: STextStyles.w500_12(context).copyWith(
-                      color:
-                          Theme.of(
-                            context,
-                          ).extension<StackColors>()!.textSubtitle1,
+                    textAlign: TextAlign.right,
+                    style: STextStyles.w600_14(context),
+                  ),
+                if (!widget.compact) const SizedBox(width: 10),
+                Expanded(
+                  child: ConditionalParent(
+                    condition: widget.compact,
+                    builder: (child) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            ref
+                                .watch(pAmountFormatter(coin))
+                                .format(
+                                  Amount(
+                                    rawValue: BigInt.from(utxo.value),
+                                    fractionDigits: coin.fractionDigits,
+                                  ),
+                                ),
+                            textAlign: TextAlign.right,
+                            style: STextStyles.w600_14(context),
+                          ),
+                          const SizedBox(height: 2),
+                          child,
+                        ],
+                      );
+                    },
+                    child: Text(
+                      utxo.name.isNotEmpty
+                          ? utxo.name
+                          : utxo.address ?? utxo.txid,
+                      textAlign: widget.compact
+                          ? TextAlign.left
+                          : TextAlign.center,
+                      style: STextStyles.w500_12(context).copyWith(
+                        color: Theme.of(
+                          context,
+                        ).extension<StackColors>()!.textSubtitle1,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              AppBarIconButton(
-                size: 36,
-                shadows: const [],
-                color: Theme.of(context).extension<StackColors>()!.popupBG,
-                icon: SvgPicture.asset(
-                  Assets.svg.verticalEllipsis,
-                  color:
-                      Theme.of(context).extension<StackColors>()!.textSubtitle1,
-                  width: 20,
-                  height: 20,
+                const SizedBox(width: 10),
+                AppBarIconButton(
+                  size: 36,
+                  shadows: const [],
+                  color: Theme.of(context).extension<StackColors>()!.popupBG,
+                  icon: SvgPicture.asset(
+                    Assets.svg.verticalEllipsis,
+                    color: Theme.of(
+                      context,
+                    ).extension<StackColors>()!.textSubtitle1,
+                    width: 20,
+                    height: 20,
+                  ),
+                  onPressed: _details,
                 ),
-                onPressed: _details,
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
         );
       },

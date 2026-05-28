@@ -90,8 +90,9 @@ class _UtxoCardState extends ConsumerState<UtxoCard> {
         focusElevation: 0,
         highlightElevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(Constants.size.circularBorderRadius),
+          borderRadius: BorderRadius.circular(
+            Constants.size.circularBorderRadius,
+          ),
         ),
         onPressed: _toggleSelected,
         child: child,
@@ -108,50 +109,46 @@ class _UtxoCardState extends ConsumerState<UtxoCard> {
               children: [
                 ConditionalParent(
                   condition: widget.canSelect,
-                  builder: (child) => GestureDetector(
-                    onTap: _toggleSelected,
-                    child: child,
-                  ),
+                  builder: (child) =>
+                      GestureDetector(onTap: _toggleSelected, child: child),
                   child: UTXOStatusIcon(
                     blocked: utxo.isBlocked,
-                    status: utxo.isConfirmedStatus(
-                      currentHeight,
-                      ref.watch(
-                        pWallets.select(
-                          (s) => s.getWallet(
-                            widget.walletId,
+                    status:
+                        utxo.isConfirmedStatus(
+                          currentHeight,
+                          ref.watch(
+                            pWallets.select(
+                              (s) => s.getWallet(widget.walletId),
+                            ),
                           ),
-                        ),
-                      ),
-                    )
+                        )
                         ? UTXOStatusIconStatus.confirmed
                         : UTXOStatusIconStatus.unconfirmed,
-                    background:
-                        Theme.of(context).extension<StackColors>()!.popupBG,
+                    background: Theme.of(
+                      context,
+                    ).extension<StackColors>()!.popupBG,
                     selected: _selected,
                     width: 32,
                     height: 32,
                   ),
                 ),
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        ref.watch(pAmountFormatter(coin)).format(
+                        ref
+                            .watch(pAmountFormatter(coin))
+                            .format(
                               utxo.value.toAmountAsRaw(
                                 fractionDigits: coin.fractionDigits,
                               ),
                             ),
                         style: STextStyles.w600_14(context),
                       ),
-                      const SizedBox(
-                        height: 2,
-                      ),
+                      const SizedBox(height: 2),
                       Row(
                         children: [
                           Flexible(
@@ -160,9 +157,9 @@ class _UtxoCardState extends ConsumerState<UtxoCard> {
                                   ? utxo.name
                                   : utxo.address ?? utxo.txid,
                               style: STextStyles.w500_12(context).copyWith(
-                                color: Theme.of(context)
-                                    .extension<StackColors>()!
-                                    .textSubtitle1,
+                                color: Theme.of(
+                                  context,
+                                ).extension<StackColors>()!.textSubtitle1,
                               ),
                             ),
                           ),
@@ -171,10 +168,7 @@ class _UtxoCardState extends ConsumerState<UtxoCard> {
                     ],
                   ),
                 ),
-                if (widget.onOptionsPressed != null)
-                  const SizedBox(
-                    width: 10,
-                  ),
+                if (widget.onOptionsPressed != null) const SizedBox(width: 10),
                 if (widget.onOptionsPressed != null)
                   AppBarIconButton(
                     size: 36,
@@ -182,9 +176,9 @@ class _UtxoCardState extends ConsumerState<UtxoCard> {
                     color: Theme.of(context).extension<StackColors>()!.popupBG,
                     icon: SvgPicture.asset(
                       Assets.svg.verticalEllipsis,
-                      color: Theme.of(context)
-                          .extension<StackColors>()!
-                          .textSubtitle1,
+                      color: Theme.of(
+                        context,
+                      ).extension<StackColors>()!.textSubtitle1,
                       width: 20,
                       height: 20,
                     ),
