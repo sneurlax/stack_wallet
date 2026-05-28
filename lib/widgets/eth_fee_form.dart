@@ -173,37 +173,35 @@ class _EthFeeFormState extends ConsumerState<EthFeeForm> {
             onChanged: (value) {
               widget.stateChanged(_current);
             },
-            style:
-                Util.isDesktop
-                    ? STextStyles.desktopTextExtraSmall(context).copyWith(
-                      color:
-                          Theme.of(
-                            context,
-                          ).extension<StackColors>()!.textFieldActiveText,
-                      height: 1.8,
-                    )
-                    : STextStyles.field(context),
-            decoration: standardInputDecoration(
-              null,
-              maxBaseFocus,
-              context,
-              desktopMed: Util.isDesktop,
-            ).copyWith(
-              contentPadding: EdgeInsets.only(
-                left: 16,
-                top: Util.isDesktop ? 11 : 6,
-                bottom: Util.isDesktop ? 12 : 8,
-                right: 5,
-              ),
-            ),
+            style: Util.isDesktop
+                ? STextStyles.desktopTextExtraSmall(context).copyWith(
+                    color: Theme.of(
+                      context,
+                    ).extension<StackColors>()!.textFieldActiveText,
+                    height: 1.8,
+                  )
+                : STextStyles.field(context),
+            decoration:
+                standardInputDecoration(
+                  null,
+                  maxBaseFocus,
+                  context,
+                  desktopMed: Util.isDesktop,
+                ).copyWith(
+                  contentPadding: EdgeInsets.only(
+                    left: 16,
+                    top: Util.isDesktop ? 11 : 6,
+                    bottom: Util.isDesktop ? 12 : 8,
+                    right: 5,
+                  ),
+                ),
           ),
         ),
         const SizedBox(height: 6),
         AnimatedSwitcher(
           duration: _textFadeDuration,
-          transitionBuilder:
-              (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
           child: Text(
             _currentBase,
             key: ValueKey(
@@ -231,37 +229,35 @@ class _EthFeeFormState extends ConsumerState<EthFeeForm> {
             onChanged: (value) {
               widget.stateChanged(_current);
             },
-            style:
-                Util.isDesktop
-                    ? STextStyles.desktopTextExtraSmall(context).copyWith(
-                      color:
-                          Theme.of(
-                            context,
-                          ).extension<StackColors>()!.textFieldActiveText,
-                      height: 1.8,
-                    )
-                    : STextStyles.field(context),
-            decoration: standardInputDecoration(
-              null,
-              priorityFeeFocus,
-              context,
-              desktopMed: Util.isDesktop,
-            ).copyWith(
-              contentPadding: EdgeInsets.only(
-                left: 16,
-                top: Util.isDesktop ? 11 : 6,
-                bottom: Util.isDesktop ? 12 : 8,
-                right: 5,
-              ),
-            ),
+            style: Util.isDesktop
+                ? STextStyles.desktopTextExtraSmall(context).copyWith(
+                    color: Theme.of(
+                      context,
+                    ).extension<StackColors>()!.textFieldActiveText,
+                    height: 1.8,
+                  )
+                : STextStyles.field(context),
+            decoration:
+                standardInputDecoration(
+                  null,
+                  priorityFeeFocus,
+                  context,
+                  desktopMed: Util.isDesktop,
+                ).copyWith(
+                  contentPadding: EdgeInsets.only(
+                    left: 16,
+                    top: Util.isDesktop ? 11 : 6,
+                    bottom: Util.isDesktop ? 12 : 8,
+                    right: 5,
+                  ),
+                ),
           ),
         ),
         const SizedBox(height: 6),
         AnimatedSwitcher(
           duration: _textFadeDuration,
-          transitionBuilder:
-              (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
           child: Text(
             _currentPriority,
             key: ValueKey(
@@ -299,29 +295,28 @@ class _EthFeeFormState extends ConsumerState<EthFeeForm> {
 
               widget.stateChanged(_current);
             },
-            style:
-                Util.isDesktop
-                    ? STextStyles.desktopTextExtraSmall(context).copyWith(
-                      color:
-                          Theme.of(
-                            context,
-                          ).extension<StackColors>()!.textFieldActiveText,
-                      height: 1.8,
-                    )
-                    : STextStyles.field(context),
-            decoration: standardInputDecoration(
-              null,
-              gasLimitFocus,
-              context,
-              desktopMed: Util.isDesktop,
-            ).copyWith(
-              contentPadding: EdgeInsets.only(
-                left: 16,
-                top: Util.isDesktop ? 11 : 6,
-                bottom: Util.isDesktop ? 12 : 8,
-                right: 5,
-              ),
-            ),
+            style: Util.isDesktop
+                ? STextStyles.desktopTextExtraSmall(context).copyWith(
+                    color: Theme.of(
+                      context,
+                    ).extension<StackColors>()!.textFieldActiveText,
+                    height: 1.8,
+                  )
+                : STextStyles.field(context),
+            decoration:
+                standardInputDecoration(
+                  null,
+                  gasLimitFocus,
+                  context,
+                  desktopMed: Util.isDesktop,
+                ).copyWith(
+                  contentPadding: EdgeInsets.only(
+                    left: 16,
+                    top: Util.isDesktop ? 11 : 6,
+                    bottom: Util.isDesktop ? 12 : 8,
+                    right: 5,
+                  ),
+                ),
           ),
         ),
       ],
