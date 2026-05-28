@@ -70,11 +70,7 @@ class StartHeightPickerController extends ChangeNotifier {
   /// will update its own UI state accordingly.
   void setBlockHeight(int height) {
     _requestedHeight = height;
-    _update(
-      isUsingDate: false,
-      height: height,
-      hasBlockHeight: height > 0,
-    );
+    _update(isUsingDate: false, height: height, hasBlockHeight: height > 0);
   }
 
   /// Non-null while a height request from [setBlockHeight] has not yet been
