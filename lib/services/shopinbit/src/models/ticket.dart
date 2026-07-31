@@ -23,6 +23,18 @@ List<String> splitTrackingLinks(String? raw) {
       .toList();
 }
 
+/// Whether an incoming status requires the ticket's full details to be
+/// refreshed. Both values come from the server; client wall-clock time must
+/// never participate in this decision.
+bool shouldRefreshTicketDetails({
+  required TicketStatus incoming,
+  required String storedState,
+  required DateTime storedUpdatedAt,
+}) {
+  return incoming.stateRaw != storedState ||
+      incoming.updatedAt.isAfter(storedUpdatedAt);
+}
+
 enum TicketState {
   newTicket('NEW'),
   checking('CHECKING'),
@@ -125,9 +137,9 @@ class TicketStatus {
       ticketId: _toInt(json['ticket_id']),
       state: TicketState.fromString(rawState),
       stateRaw: rawState,
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String).toUtc(),
       lastAgentMessageAt: json['last_agent_message_at'] != null
-          ? DateTime.parse(json['last_agent_message_at'] as String)
+          ? DateTime.parse(json['last_agent_message_at'] as String).toUtc()
           : null,
       paymentInvoiceStatus: json['payment_invoice_status'] as String?,
       // Production returns "" (not null) when there is no tracking link yet;

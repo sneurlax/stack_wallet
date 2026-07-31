@@ -312,8 +312,11 @@ class ShopInBitService {
 
         final ApiResponse<TicketFull>? fullResp;
         if (existing == null ||
-            // status.state.value != existing.statusRaw ||
-            status.updatedAt.isAfter(existing.updatedAt)) {
+            shouldRefreshTicketDetails(
+              incoming: status,
+              storedState: existing.statusRaw,
+              storedUpdatedAt: existing.updatedAt,
+            )) {
           fullResp = await client.getTicketFull(id, customerKey: customerKey);
 
           if (kDebugMode) {
@@ -426,7 +429,7 @@ class ShopInBitService {
               : null,
         ),
         messages: Value(messages),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(status.updatedAt),
       ),
     );
   }
@@ -483,7 +486,9 @@ class ShopInBitService {
                     : null,
               ),
 
-        updatedAt: Value(DateTime.now()),
+        updatedAt: status == null
+            ? const Value.absent()
+            : Value(status.updatedAt),
       ),
     );
 
