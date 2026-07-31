@@ -63,6 +63,7 @@ import '../../../../../wallets/wallet/wallet_mixin_interfaces/mnemonic_interface
 import '../../../../../wallets/wallet/wallet_mixin_interfaces/private_key_interface.dart';
 import '../../../../../wallets/wallet/wallet_mixin_interfaces/view_only_option_interface.dart';
 import '../../../../../wl_gen/interfaces/frost_interface.dart';
+import 'shopinbit_backup.dart';
 
 class PreRestoreState {
   final Set<String> walletIds;
@@ -1165,16 +1166,7 @@ abstract class SWB {
       await CakePayService.instance.addOrderId(orderId);
     }
 
-    final json = backupJson["shopinBit"] as Map? ?? {};
-
-    if (json.isEmpty) return;
-
-    final shopinBitCustomerKeys = json["shopinBitCustomerKeys"] as List?;
-    if (shopinBitCustomerKeys != null && shopinBitCustomerKeys.isNotEmpty) {
-      for (final key in shopinBitCustomerKeys.cast<String>()) {
-        await shopinbitService.recoverCustomerKey(key);
-      }
-    }
+    await restoreShopInBitBackup(backupJson, shopinbitService);
   }
 
   static Future<void> _restorePrefs(Map<String, dynamic> prefs) async {

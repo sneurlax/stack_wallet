@@ -98,13 +98,14 @@ class ShopInBitService {
     return useCustomerKey(resp.valueOrThrow);
   }
 
-  Future<String> recoverCustomerKey(String key) => useCustomerKey(key);
+  Future<String> recoverCustomerKey(String key, {DateTime? lastUsedAt}) =>
+      useCustomerKey(key, lastUsedAt: lastUsedAt);
 
   /// Switch the active customer key. Tickets for OTHER customer keys stay
   /// in the DB — switching is just a header change plus an upsert into
   /// settings. The UI filters tickets by the active key.
-  Future<String> useCustomerKey(String key) async {
-    await db.shopInBitSettingsDao.upsert(key);
+  Future<String> useCustomerKey(String key, {DateTime? lastUsedAt}) async {
+    await db.shopInBitSettingsDao.upsert(key, lastUsedAt: lastUsedAt);
     return key;
   }
 

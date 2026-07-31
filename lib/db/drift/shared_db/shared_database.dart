@@ -324,8 +324,8 @@ class ShopInBitSettingsDao extends DatabaseAccessor<SharedDatabase>
   // -- Writes --
 
   /// Insert if missing, otherwise bump [lastUsedAt]. Returns the row.
-  Future<ShopInBitSetting> upsert(String customerKey) {
-    final DateTime now = DateTime.now();
+  Future<ShopInBitSetting> upsert(String customerKey, {DateTime? lastUsedAt}) {
+    final DateTime now = lastUsedAt ?? DateTime.now();
     return into(shopInBitSettings).insertReturning(
       ShopInBitSettingsCompanion.insert(
         customerKey: customerKey,
