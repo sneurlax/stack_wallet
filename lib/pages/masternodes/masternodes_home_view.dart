@@ -33,6 +33,7 @@ import '../../widgets/loading_indicator.dart';
 import '../../widgets/stack_dialog.dart';
 import '../send_view/send_view.dart';
 import 'create_masternode_view.dart';
+import 'masternode_fee_plan.dart';
 import 'sub_widgets/masternodes_list.dart';
 
 class MasternodesHomeView extends ConsumerStatefulWidget {
@@ -254,23 +255,26 @@ class _MasternodesHomeViewState extends ConsumerState<MasternodesHomeView> {
             Decimal.parse("0.00001"),
             fractionDigits: wallet.cryptoCurrency.fractionDigits,
           );
-          final desiredOnTransparent = estimatedConsolidationFee + feeBuffer;
-
           Amount sparkFeeEstimate;
           try {
             sparkFeeEstimate = await wallet.estimateFeeForSpark(
-              desiredOnTransparent,
+              estimatedConsolidationFee + feeBuffer,
             );
           } catch (_) {
             sparkFeeEstimate = estimatedConsolidationFee;
           }
           if (!mounted) return;
 
-          final requiredFromSpark = desiredOnTransparent + sparkFeeEstimate;
-          final canUnshieldFromSpark = sparkBalance >= requiredFromSpark.raw;
+          final unshieldPlan = planMasternodeFeeUnshield(
+            consolidationFee: estimatedConsolidationFee,
+            transparentBuffer: feeBuffer,
+            sparkFee: sparkFeeEstimate,
+          );
+          final canUnshieldFromSpark =
+              sparkBalance >= unshieldPlan.requiredSparkBalance.raw;
 
           if (canUnshieldFromSpark) {
-            final unshieldDecimal = requiredFromSpark.decimal;
+            final unshieldDecimal = unshieldPlan.amountToUnshield.decimal;
             final shouldOpenSend = await showDialog<bool>(
               context: context,
               builder: (ctx) => _OpenSendDialog(
