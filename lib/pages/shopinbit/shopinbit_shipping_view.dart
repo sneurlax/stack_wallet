@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../db/drift/shared_db/shared_database.dart';
 import '../../providers/global/shopin_bit_service_provider.dart';
+import '../../services/shopinbit/src/api_response.dart';
 import '../../services/shopinbit/src/models/address.dart';
 import '../../services/shopinbit/src/models/payment.dart';
 import '../../themes/stack_colors.dart';
@@ -19,10 +18,12 @@ import '../../widgets/detail_item.dart';
 import '../../widgets/dialogs/s_dialog.dart';
 import '../../widgets/stack_dialog.dart';
 import '../../widgets/textfields/adaptive_text_field.dart';
+import 'shopinbit_checkout.dart';
 import 'shopinbit_payment_shared.dart';
 import 'shopinbit_payment_view.dart';
 import 'step_4_components/shopinbit_country_picker.dart';
 import 'step_4_components/shopinbit_state_picker.dart';
+import 'step_4_components/shopinbit_terms_checkbox.dart';
 
 class ShopInBitShippingView extends ConsumerStatefulWidget {
   const ShopInBitShippingView({
@@ -72,15 +73,21 @@ class _ShopInBitShippingViewState extends ConsumerState<ShopInBitShippingView> {
   late final String _deliveryCountryLabel;
 
   late final String? _selectedState;
+  late final bool _shippingRequiresState;
+  late final String? _deliveryLocationError;
 
   String? _selectedBillingState;
 
-  late bool _requiresState;
-
+  bool _termsAccepted = false;
   bool _submitting = false;
 
+  bool get _billingRequiresState =>
+      shopInBitAddressRequiresState(_billingSelectedCountryIso);
+
   bool get _canContinue {
-    if (_submitting) return false;
+    if (_submitting || !_termsAccepted || _deliveryLocationError != null) {
+      return false;
+    }
     final shippingValid =
         _nameFirstController.text.trim().isNotEmpty &&
         _nameLastController.text.trim().isNotEmpty &&
@@ -94,7 +101,8 @@ class _ShopInBitShippingViewState extends ConsumerState<ShopInBitShippingView> {
           _billingStreetController.text.trim().isNotEmpty &&
           _billingCityController.text.trim().isNotEmpty &&
           _billingPostalCodeController.text.trim().isNotEmpty &&
-          _billingSelectedCountryIso != null;
+          _billingSelectedCountryIso != null &&
+          (!_billingRequiresState || _selectedBillingState != null);
     }
     return true;
   }
@@ -124,46 +132,17 @@ class _ShopInBitShippingViewState extends ConsumerState<ShopInBitShippingView> {
     _billingCityFocusNode = FocusNode();
     _billingPostalCodeFocusNode = FocusNode();
 
-    _selectedCountryIso = widget.ticket.deliveryCountry;
-
-    _requiresState = switch (_selectedCountryIso) {
-      "US" || "CA" => widget.ticket.category != .travel,
-      _ => false,
-    };
-
-    if (_requiresState) {
-      final parts = widget.ticket.messages.firstOrNull?.content.split("\n");
-      if (parts == null) {
-        Logging.instance.f("Missing state/province where required!");
-        throw ArgumentError("Missing first ticket message");
-      }
-
-      final line = parts
-          .where(
-            (e) => e.startsWith("Delivery state:") || e.startsWith("State:"),
-          )
-          .firstOrNull;
-      if (line == null) {
-        Logging.instance.f("Missing state/province in first message!");
-        throw ArgumentError("Missing state/province in first ticket message");
-      }
-
-      _selectedState = line
-          .replaceFirst("Delivery state:", "")
-          .replaceFirst("State:", "")
-          .trim();
-    } else {
-      _selectedState = null;
-    }
-
-    // firstWhere should never fail here as the caller of this widget must
-    // check that countries contains the expected value. Failure here should be
-    // considered unrecoverable/fatal as it indicates a bug elsewhere
-    _deliveryCountryLabel =
-        widget.countries.firstWhere(
-              (e) => e["iso"] == _selectedCountryIso,
-            )["label"]
-            as String;
+    final location = ShopInBitDeliveryLocation.resolve(
+      countryIso: widget.ticket.deliveryCountry,
+      category: widget.ticket.category,
+      firstMessageContent: widget.ticket.messages.firstOrNull?.content,
+      countries: widget.countries,
+    );
+    _selectedCountryIso = location.countryIso;
+    _deliveryCountryLabel = location.countryLabel ?? location.countryIso;
+    _shippingRequiresState = location.requiresState;
+    _selectedState = location.state;
+    _deliveryLocationError = location.error;
 
     for (final node in [
       _nameFirstFocusNode,
@@ -214,57 +193,60 @@ class _ShopInBitShippingViewState extends ConsumerState<ShopInBitShippingView> {
     final postalCode = _postalCodeController.text.trim();
     final country = _selectedCountryIso;
 
-    PaymentInfo? paymentInfo;
+    ApiResponse<PaymentInfo>? checkoutResult;
     setState(() => _submitting = true);
-    try {
-      Address? billingAddress;
-      if (_differentBilling) {
-        billingAddress = Address(
-          firstName: _billingFirstNameController.text.trim(),
-          lastName: _billingLastNameController.text.trim(),
-          street: _billingStreetController.text.trim(),
-          zip: _billingPostalCodeController.text.trim(),
-          city: _billingCityController.text.trim(),
-          country: _requiresState ? country : _billingSelectedCountryIso!,
-          state: _requiresState ? _selectedState : _selectedBillingState,
-        );
-      }
-
-      final resp = await ref
-          .read(pShopinBitService)
-          .client
-          .submitAddress(
-            widget.ticket.apiTicketId,
-            shipping: Address(
-              firstName: nameFirst,
-              lastName: nameLast,
-              street: street,
-              zip: postalCode,
-              city: city,
-              country: country,
-              state: _requiresState ? _selectedState! : null,
-            ),
-            billing: billingAddress,
-            customerKey: widget.ticket.customerKey,
-          );
-
-      if (resp.hasError) {
-        // Sandbox may fail here; continue anyway.
-        Logging.instance.w("submitAddress failed", error: resp.exception);
-      }
-
-      paymentInfo = await fetchShopInBitPaymentInfo(
-        ref.read(pShopinBitService).client,
-        widget.ticket.apiTicketId,
-        widget.ticket.customerKey,
+    final client = ref.read(pShopinBitService).client;
+    Address? billingAddress;
+    if (_differentBilling) {
+      billingAddress = Address(
+        firstName: _billingFirstNameController.text.trim(),
+        lastName: _billingLastNameController.text.trim(),
+        street: _billingStreetController.text.trim(),
+        zip: _billingPostalCodeController.text.trim(),
+        city: _billingCityController.text.trim(),
+        country: _billingSelectedCountryIso!,
+        state: _billingRequiresState ? _selectedBillingState : null,
       );
-    } catch (e, s) {
-      Logging.instance.e("submitAddress threw", error: e, stackTrace: s);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
     }
 
+    checkoutResult = await submitShopInBitCheckout(
+      termsAccepted: _termsAccepted,
+      submitAddress: () => client.submitAddress(
+        widget.ticket.apiTicketId,
+        shipping: Address(
+          firstName: nameFirst,
+          lastName: nameLast,
+          street: street,
+          zip: postalCode,
+          city: city,
+          country: country,
+          state: _shippingRequiresState ? _selectedState : null,
+        ),
+        billing: billingAddress,
+        customerKey: widget.ticket.customerKey,
+      ),
+      createPayment: () => fetchShopInBitPaymentInfo(
+        client,
+        widget.ticket.apiTicketId,
+        widget.ticket.customerKey,
+      ),
+    );
+    if (mounted) setState(() => _submitting = false);
+
     if (!mounted) return;
+
+    if (checkoutResult.hasError) {
+      Logging.instance.w(
+        "ShopInBit checkout failed",
+        error: checkoutResult.exception,
+      );
+      await _showPaymentLoadError(
+        "We couldn't submit the address or create the payment. "
+        "Please review the address and try again.",
+      );
+      return;
+    }
+    final paymentInfo = checkoutResult.value;
 
     // no_payment_required legitimately has empty payment_links (voucher/credit
     // covers it): open the payment view, which shows a "covered" state.
@@ -376,10 +358,15 @@ class _ShopInBitShippingViewState extends ConsumerState<ShopInBitShippingView> {
             ),
           ],
         ),
-        if (_requiresState) spacing,
-        if (_requiresState) DetailItem(title: "State", detail: _selectedState!),
+        if (_shippingRequiresState) spacing,
+        if (_shippingRequiresState)
+          DetailItem(title: "State", detail: _selectedState ?? "Unavailable"),
         spacing,
         DetailItem(title: "Country", detail: _deliveryCountryLabel),
+        if (_deliveryLocationError != null) ...[
+          const SizedBox(height: 8),
+          Text(_deliveryLocationError, style: STextStyles.errorSmall(context)),
+        ],
         spacing,
         // Billing address toggle.
         GestureDetector(
@@ -500,13 +487,16 @@ class _ShopInBitShippingViewState extends ConsumerState<ShopInBitShippingView> {
           ),
           spacing,
 
-          if (_requiresState) ...[
-            DetailItem(title: "Billing state", detail: _selectedState!),
+          ShopInBitCountryPicker(
+            hintText: "Billing country",
+            selectedIso: _billingSelectedCountryIso,
+            onChanged: (data) => setState(() {
+              _billingSelectedCountryIso = data?.code;
+              _selectedBillingState = null;
+            }),
+          ),
+          if (_billingRequiresState) ...[
             spacing,
-            DetailItem(title: "Billing country", detail: _deliveryCountryLabel),
-          ],
-
-          if (!_requiresState) ...[
             ShopInBitStatePicker(
               countryIso: _billingSelectedCountryIso!,
               selectedState: _selectedBillingState,
@@ -518,20 +508,16 @@ class _ShopInBitShippingViewState extends ConsumerState<ShopInBitShippingView> {
                 }
               },
             ),
-            spacing,
-            ShopInBitCountryPicker(
-              hintText: "Billing country",
-              selectedIso: _billingSelectedCountryIso,
-              onChanged: (data) => setState(() {
-                _billingSelectedCountryIso = data?.code;
-                _requiresState = data?.requiresState ?? false;
-              }),
-            ),
           ],
         ],
         const SizedBox(height: 24),
+        ShopInBitTermsCheckbox(
+          value: _termsAccepted,
+          onChanged: (value) => setState(() => _termsAccepted = value),
+        ),
+        const SizedBox(height: 24),
         PrimaryButton(
-          label: _submitting ? "Submitting..." : "Continue to payment",
+          label: _submitting ? "Creating payment..." : "Pay now",
           enabled: _canContinue,
           onPressed: _canContinue ? _continue : null,
         ),

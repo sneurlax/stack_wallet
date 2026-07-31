@@ -15,6 +15,7 @@ import '../../widgets/desktop/secondary_button.dart';
 import '../../widgets/dialogs/s_dialog.dart';
 import '../../widgets/rounded_white_container.dart';
 import '../../widgets/stack_dialog.dart';
+import 'shopinbit_checkout.dart';
 import 'shopinbit_shipping_view.dart';
 
 class ShopInBitOfferView extends ConsumerWidget {
@@ -108,8 +109,6 @@ class ShopInBitOfferView extends ConsumerWidget {
               label: "Accept offer",
               buttonHeight: Util.isDesktop ? ButtonHeight.l : null,
               onPressed: () async {
-                final deliveryCountry = ticket?.deliveryCountry ?? "";
-
                 final shopinBitApi = ref.read(pShopinBitService).client;
                 final response = await showLoading(
                   context: context,
@@ -125,18 +124,19 @@ class ShopInBitOfferView extends ConsumerWidget {
 
                 String? errorMessage;
 
-                if (response?.value == null) {
+                if (ticket == null) {
+                  errorMessage = "The offer is not available yet.";
+                } else if (response?.value == null) {
                   errorMessage =
                       response?.exception?.toString() ??
                       "Failed to fetch countries data";
-                } else if (response!.value!
-                        .where((c) => c['iso'] == deliveryCountry)
-                        .length !=
-                    1) {
-                  errorMessage =
-                      "Delivery country code \""
-                      "$deliveryCountry"
-                      "\" is invalid";
+                } else {
+                  errorMessage = ShopInBitDeliveryLocation.resolve(
+                    countryIso: ticket.deliveryCountry,
+                    category: ticket.category,
+                    firstMessageContent: ticket.messages.firstOrNull?.content,
+                    countries: response!.value!,
+                  ).error;
                 }
 
                 if (errorMessage != null) {
