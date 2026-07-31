@@ -7,6 +7,7 @@ import '../../services/shopinbit/shopinbit_api.dart';
 import '../../services/shopinbit/shopinbit_service.dart';
 import '../db/drift_provider.dart';
 import 'notifications_provider.dart';
+import 'secure_store_provider.dart';
 
 final pShopinBitService = Provider(
   (ref) => ShopInBitService(
@@ -16,6 +17,7 @@ final pShopinBitService = Provider(
       sandbox: false,
     ),
     db: ref.watch(pSharedDrift),
+    secureStorage: ref.watch(secureStoreProvider),
   ),
 );
 

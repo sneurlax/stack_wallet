@@ -42,7 +42,7 @@ final class SharedDatabase extends _$SharedDatabase {
     : super(executor ?? _openConnection());
 
   @visibleForTesting
-  SharedDatabase.forTesting(QueryExecutor executor) : super(executor);
+  SharedDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 3;
@@ -370,6 +370,31 @@ class ShopInBitSettingsDao extends DatabaseAccessor<SharedDatabase>
     customerKey,
     ShopInBitSettingsCompanion(setupComplete: Value(value)),
   );
+
+  /// Copies the single-row settings used by build 310 onto [customerKey].
+  /// The old global guideline acknowledgement applies to every category in
+  /// the new schema. Privacy acknowledgement was not persisted by v2.
+  Future<void> migrateLegacyV2Settings(String customerKey) async {
+    if (!await attachedDatabase._tableExists('shopin_bit_settings')) return;
+
+    final legacy = await customSelect(
+      'SELECT guidelines_accepted, setup_complete '
+      'FROM shopin_bit_settings LIMIT 1',
+    ).getSingleOrNull();
+    if (legacy == null) return;
+
+    final guidelinesAccepted = legacy.read<bool>('guidelines_accepted');
+    final setupComplete = legacy.read<bool>('setup_complete');
+    await _write(
+      customerKey,
+      ShopInBitSettingsCompanion(
+        conciergeGuidelinesAccepted: Value(guidelinesAccepted),
+        travelGuidelinesAccepted: Value(guidelinesAccepted),
+        carGuidelinesAccepted: Value(guidelinesAccepted),
+        setupComplete: Value(setupComplete),
+      ),
+    );
+  }
 
   Future<int> deleteByKey(String customerKey) {
     return (delete(

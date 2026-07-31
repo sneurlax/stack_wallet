@@ -7,6 +7,7 @@ import "package:flutter/foundation.dart";
 import "../../db/drift/shared_db/shared_database.dart";
 import "../../db/drift/shared_db/tables/notifications.dart";
 import "../../models/shopinbit/shopinbit_enums.dart";
+import "../../utilities/flutter_secure_storage_interface.dart";
 import "../../utilities/logger.dart";
 import "../notifications_api.dart";
 import "src/api_response.dart";
@@ -16,6 +17,13 @@ import "src/models/ticket.dart";
 
 /// Display name sent to ShopinBit as `customer_pseudonym`.
 const String kShopInBitCustomerPseudonym = "Satoshi";
+
+/// Secure-storage key used by the build 310 ShopInBit implementation.
+///
+/// Kept during the v2-to-v3 transition so an upgrade can attach the existing
+/// API-backed tickets to the new per-customer settings table.
+const String kLegacyShopInBitCustomerKeySecureStoreKey =
+    "shopinBitSecStoreCustomerKeyKey";
 
 /// A refresh currently in flight for one ticket. [forced] records whether it
 /// will (re)fetch the message list, so a later forced caller knows whether it
@@ -27,10 +35,15 @@ class _InFlightRefresh {
 }
 
 class ShopInBitService {
-  ShopInBitService({required this.client, required this.db});
+  ShopInBitService({
+    required this.client,
+    required this.db,
+    required this.secureStorage,
+  });
 
   final ShopInBitClient client;
   final SharedDatabase db;
+  final SecureStorageInterface secureStorage;
 
   final Map<int, _InFlightRefresh> _inFlight = {};
 
@@ -43,8 +56,8 @@ class ShopInBitService {
   // -- Customer key --
 
   /// Returns the most-recently-used customer key. Generates a new one if
-  /// the DB has no settings yet. Always leaves [client] pointing at the
-  /// returned key.
+  /// the DB has no settings yet. Before generating, migrates the customer key
+  /// and settings used by build 310, if present.
   Future<String> ensureCustomerKey() async {
     final ShopInBitSetting? current = await db.shopInBitSettingsDao
         .getCurrentSettings();
@@ -52,6 +65,31 @@ class ShopInBitService {
       await db.shopInBitSettingsDao.touch(current.customerKey);
       return current.customerKey;
     }
+
+    final String? legacyKey = (await secureStorage.read(
+      key: kLegacyShopInBitCustomerKeySecureStoreKey,
+    ))?.trim();
+    if (legacyKey != null && legacyKey.isNotEmpty) {
+      await db.transaction(() async {
+        await db.shopInBitSettingsDao.upsert(legacyKey);
+        await db.shopInBitSettingsDao.migrateLegacyV2Settings(legacyKey);
+      });
+      try {
+        await secureStorage.delete(
+          key: kLegacyShopInBitCustomerKeySecureStoreKey,
+        );
+      } catch (e, s) {
+        // The new DB row is already authoritative. A stale legacy copy is
+        // harmless and should not stop the user from reaching their tickets.
+        Logging.instance.w(
+          "Failed to remove migrated ShopInBit customer key",
+          error: e,
+          stackTrace: s,
+        );
+      }
+      return legacyKey;
+    }
+
     return generateCustomerKey();
   }
 
