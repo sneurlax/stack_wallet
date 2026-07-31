@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../db/drift/shared_db/shared_database.dart';
@@ -827,9 +831,10 @@ class _AttachmentChip extends StatelessWidget {
 
 /// Renders an authenticated `/attachment-proxy/` image.
 ///
-/// The signed URL future is built once in [initState] (and only rebuilt when
-/// [proxyPath] or [customerKey] actually change) so the surrounding 30s poll
-/// can't re-fire `getAttachmentUrl`/re-fetch the image on every rebuild.
+/// The authenticated download future is built once in [initState] and rebuilt
+/// only when [proxyPath] or [customerKey] changes, so the surrounding 30s poll
+/// can't re-download the image on every rebuild. Credentials remain in request
+/// headers and are never embedded in an image URL.
 class _ProxyImage extends StatefulWidget {
   const _ProxyImage({
     required this.client,
@@ -848,18 +853,23 @@ class _ProxyImage extends StatefulWidget {
 }
 
 class _ProxyImageState extends State<_ProxyImage> {
-  late Future<ApiResponse<Uri>> _urlFuture;
+  late Future<ApiResponse<Uint8List>> _imageFuture;
 
-  Future<ApiResponse<Uri>> _buildFuture() => widget.client.getAttachmentUrl(
-    widget.proxyPath,
-    useQueryAuth: true,
-    customerKey: widget.customerKey,
-  );
+  Future<ApiResponse<Uint8List>> _buildFuture() async {
+    final response = await widget.client.getAttachment(
+      widget.proxyPath,
+      customerKey: widget.customerKey,
+    );
+    if (response.hasError || response.value == null) {
+      return ApiResponse(exception: response.exception);
+    }
+    return ApiResponse(value: Uint8List.fromList(response.value!.bodyBytes));
+  }
 
   @override
   void initState() {
     super.initState();
-    _urlFuture = _buildFuture();
+    _imageFuture = _buildFuture();
   }
 
   @override
@@ -867,7 +877,7 @@ class _ProxyImageState extends State<_ProxyImage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.proxyPath != widget.proxyPath ||
         oldWidget.customerKey != widget.customerKey) {
-      _urlFuture = _buildFuture();
+      _imageFuture = _buildFuture();
     }
   }
 
@@ -879,8 +889,8 @@ class _ProxyImageState extends State<_ProxyImage> {
         borderRadius: BorderRadius.circular(8),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: _kAttachmentMaxHeight),
-          child: FutureBuilder<ApiResponse<Uri>>(
-            future: _urlFuture,
+          child: FutureBuilder<ApiResponse<Uint8List>>(
+            future: _imageFuture,
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const SizedBox(
@@ -892,11 +902,12 @@ class _ProxyImageState extends State<_ProxyImage> {
               if (resp.hasError || resp.value == null) {
                 return widget.fallback();
               }
-              return Image.network(
-                resp.value!.toString(),
+              return Image.memory(
+                resp.value!,
                 fit: BoxFit.contain,
                 cacheHeight: _kAttachmentDecodeHeight,
                 semanticLabel: "Image attachment",
+                gaplessPlayback: true,
                 errorBuilder: (_, _, _) => widget.fallback(),
               );
             },
@@ -1088,7 +1099,8 @@ class _MessageBody extends ConsumerWidget {
   }
 }
 
-/// A tappable `/attachment-proxy/` file link, opened in the browser.
+/// A tappable `/attachment-proxy/` file link, downloaded with authenticated
+/// headers before the local file is offered to the platform share sheet.
 class _AttachmentFileLink extends ConsumerWidget {
   const _AttachmentFileLink({
     required this.proxyPath,
@@ -1103,11 +1115,10 @@ class _AttachmentFileLink extends ConsumerWidget {
   final TextStyle textStyle;
 
   Future<void> _open(BuildContext context, ShopInBitService service) async {
-    // Resolving the signed URL hits the token manager (and possibly the
-    // network), so show the loading overlay and surface any failure rather than
-    // doing nothing.
+    // The authenticated download can hit the token endpoint first, so show the
+    // loading overlay and surface failures rather than doing nothing.
     await showLoading<void>(
-      whileFuture: _resolveAndLaunch(service),
+      whileFuture: _downloadAndShare(service),
       context: context,
       message: "Opening attachment",
       rootNavigator: Util.isDesktop,
@@ -1122,20 +1133,30 @@ class _AttachmentFileLink extends ConsumerWidget {
     );
   }
 
-  Future<void> _resolveAndLaunch(ShopInBitService service) async {
-    final resp = await service.client.getAttachmentUrl(
+  Future<void> _downloadAndShare(ShopInBitService service) async {
+    final resp = await service.client.getAttachment(
       proxyPath,
-      useQueryAuth: true,
       customerKey: customerKey,
     );
     if (resp.hasError || resp.value == null) {
-      throw resp.exception ?? Exception("Could not resolve attachment URL");
+      throw resp.exception ?? Exception("Could not download attachment");
     }
-    final launched = await launchUrl(
-      resp.value!,
-      mode: LaunchMode.externalApplication,
+    final tempDirectory = await getTemporaryDirectory();
+    final attachmentDirectory = Directory(
+      path.join(tempDirectory.path, 'shopinbit_attachments'),
     );
-    if (!launched) throw Exception("Could not open attachment");
+    await attachmentDirectory.create(recursive: true);
+    final file = File(
+      path.join(
+        attachmentDirectory.path,
+        '${DateTime.now().microsecondsSinceEpoch}_'
+        '${_safeAttachmentFilename(filename, proxyPath)}',
+      ),
+    );
+    await file.writeAsBytes(resp.value!.bodyBytes, flush: true);
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: filename ?? 'ShopInBit attachment');
   }
 
   @override
@@ -1179,6 +1200,21 @@ class _AttachmentFileLink extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _safeAttachmentFilename(String? filename, String proxyPath) {
+  var candidate = filename?.trim();
+  if (candidate == null || candidate.isEmpty) {
+    try {
+      candidate = Uri.decodeComponent(path.url.basename(proxyPath));
+    } catch (_) {
+      candidate = path.url.basename(proxyPath);
+    }
+  }
+  var safe = candidate.replaceAll(RegExp(r'[^A-Za-z0-9._() -]'), '_');
+  if (safe.isEmpty || safe == '.' || safe == '..') safe = 'attachment';
+  if (safe.length > 120) safe = safe.substring(safe.length - 120);
+  return safe;
 }
 
 /// Shown in place of a proxy image that failed to load.

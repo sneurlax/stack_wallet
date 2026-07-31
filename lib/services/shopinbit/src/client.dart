@@ -278,37 +278,6 @@ class ShopInBitClient {
     );
   }
 
-  /// Build a URL for fetching an attachment via `/attachment-proxy/<path>`.
-  ///
-  /// For use in HTTP clients that can set headers, use the returned URL with
-  /// the standard Authorization + External-Customer-Key headers.
-  /// For inline images (e.g. in HTML where headers can't be set), pass
-  /// [useQueryAuth] = true to append token and customer_key as query params.
-  Future<ApiResponse<Uri>> getAttachmentUrl(
-    String attachmentPath, {
-    String? customerKey,
-    bool useQueryAuth = false,
-  }) async {
-    try {
-      final token = await _tokenManager.getValidToken();
-      final resolved = _resolvePath('/attachment-proxy/$attachmentPath');
-      var uri = Uri.parse('$baseUrl$resolved');
-      if (useQueryAuth) {
-        uri = uri.replace(
-          queryParameters: {
-            'token': token,
-            if (customerKey != null) 'customer_key': customerKey,
-          },
-        );
-      }
-      return ApiResponse(value: uri);
-    } on ApiException catch (e) {
-      return ApiResponse(exception: e);
-    } catch (e) {
-      return ApiResponse(exception: ApiException.network(e));
-    }
-  }
-
   /// Download an attachment from `/attachment-proxy/<path>`.
   Future<ApiResponse<Response>> getAttachment(
     String attachmentPath, {
