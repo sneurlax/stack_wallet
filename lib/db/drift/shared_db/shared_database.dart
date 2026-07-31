@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 
 import "../../../models/shopinbit/shopinbit_enums.dart";
@@ -40,25 +41,70 @@ final class SharedDatabase extends _$SharedDatabase {
   SharedDatabase._([QueryExecutor? executor])
     : super(executor ?? _openConnection());
 
+  @visibleForTesting
+  SharedDatabase.forTesting(QueryExecutor executor) : super(executor);
+
   @override
   int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
-      if (from < 3) {
-        // deletion is fine here because sib was not used before this
-        await m.deleteTable(shopInBitSettings.actualTableName);
-        await m.deleteTable(shopInBitTickets.actualTableName);
-
+      if (from < 2) {
         await m.createTable(shopInBitSettings);
         await m.createTable(shopInBitTickets);
         await m.createTable(appNotifications);
         await m.createIndex(appNotificationsScope);
         await m.createIndex(appNotificationsTarget);
+      } else if (from == 2) {
+        final hasLegacyTicketSchema =
+            await _tableExists('shop_in_bit_tickets') &&
+            !await _tableHasColumn('shop_in_bit_tickets', 'customer_key');
+
+        if (hasLegacyTicketSchema) {
+          // Keep the v2 rows intact until the legacy secure-storage customer
+          // key has been recovered. The current API-backed service can then
+          // rehydrate those tickets without risking a destructive conversion.
+          await customStatement(
+            'ALTER TABLE shop_in_bit_tickets '
+            'RENAME TO shop_in_bit_tickets_legacy_v2',
+          );
+        }
+
+        if (!await _tableExists('shop_in_bit_settings')) {
+          await m.createTable(shopInBitSettings);
+        }
+        if (!await _tableExists('shop_in_bit_tickets')) {
+          await m.createTable(shopInBitTickets);
+        }
+        if (!await _tableExists('app_notifications')) {
+          await m.createTable(appNotifications);
+        }
+
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS app_notifications_scope '
+          'ON app_notifications (type, scope_id, read)',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS app_notifications_target '
+          'ON app_notifications (type, target_id)',
+        );
       }
     },
   );
+
+  Future<bool> _tableExists(String name) async {
+    final row = await customSelect(
+      'SELECT 1 FROM sqlite_master WHERE type = ? AND name = ? LIMIT 1',
+      variables: [const Variable('table'), Variable(name)],
+    ).getSingleOrNull();
+    return row != null;
+  }
+
+  Future<bool> _tableHasColumn(String table, String column) async {
+    final rows = await customSelect('PRAGMA table_info("$table")').get();
+    return rows.any((row) => row.read<String>('name') == column);
+  }
 
   static QueryExecutor _openConnection() {
     return driftDatabase(
