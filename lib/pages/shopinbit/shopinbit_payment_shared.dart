@@ -97,6 +97,7 @@ ShopInBitPaymentTarget parseShopInBitPaymentTarget({
 // bare Ethereum hex address. Anything else (Tron, etc.) we don't support
 // in-app and the user has to pay externally.
 final RegExp _kEthAddressRegExp = RegExp(r'^0x[0-9a-fA-F]{40}$');
+final RegExp _kTronAddressRegExp = RegExp(r'^T[1-9A-HJ-NP-Za-km-z]{33}$');
 
 bool isShopInBitEthereumUsdtUri(String paymentUri) {
   final trimmed = paymentUri.trim();
@@ -105,6 +106,29 @@ bool isShopInBitEthereumUsdtUri(String paymentUri) {
     return _kEthAddressRegExp.hasMatch(uri.path);
   }
   return _kEthAddressRegExp.hasMatch(trimmed);
+}
+
+bool isShopInBitTronUsdtUri(String paymentUri) {
+  final trimmed = paymentUri.trim();
+  final uri = Uri.tryParse(trimmed);
+  if (uri != null && uri.scheme.toLowerCase() == 'tron') {
+    final address = uri.host.isNotEmpty ? uri.host : uri.path;
+    return _kTronAddressRegExp.hasMatch(address);
+  }
+  return _kTronAddressRegExp.hasMatch(trimmed);
+}
+
+/// A network-explicit payment label. The API identifies every Tether payment
+/// only as `USDT`, so never guess a chain from that ticker alone.
+String shopInBitPaymentMethodLabel({
+  required String ticker,
+  required String paymentUri,
+}) {
+  final normalizedTicker = ticker.toUpperCase();
+  if (normalizedTicker != 'USDT') return normalizedTicker;
+  if (isShopInBitEthereumUsdtUri(paymentUri)) return 'USDT (ERC20)';
+  if (isShopInBitTronUsdtUri(paymentUri)) return 'USDT (TRC20)';
+  return 'USDT (network unknown)';
 }
 
 // True if any wallet in [wallets] can send the given upper-cased [ticker]

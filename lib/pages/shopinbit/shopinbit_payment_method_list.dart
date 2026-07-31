@@ -162,6 +162,10 @@ class _ShopInBitPaymentMethodListState
     for (var i = 0; i < count; i++) {
       final ticker = methods[i].toUpperCase();
       final address = addresses[i];
+      final paymentLabel = shopInBitPaymentMethodLabel(
+        ticker: ticker,
+        paymentUri: address,
+      );
       final coin = AppConfig.getCryptoCurrencyForTicker(ticker);
       final hasAddress = address.isNotEmpty;
       final hasWallet = hasShopInBitWalletForTicker(
@@ -215,10 +219,13 @@ class _ShopInBitPaymentMethodListState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(ticker, style: STextStyles.titleBold12(context)),
+                        Text(
+                          paymentLabel,
+                          style: STextStyles.titleBold12(context),
+                        ),
                         if (amount != null)
                           Text(
-                            "$amount $ticker",
+                            "$amount $paymentLabel",
                             style: STextStyles.itemSubtitle12(context),
                           ),
                       ],
@@ -264,8 +271,16 @@ class _ExternalPaymentDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDesktop = Util.isDesktop;
-    final showUsdtWarning =
-        ticker == "USDT" && !isShopInBitEthereumUsdtUri(address);
+    final paymentLabel = shopInBitPaymentMethodLabel(
+      ticker: ticker,
+      paymentUri: address,
+    );
+    final showUsdtWarning = ticker == "USDT";
+    final usdtWarning = paymentLabel.endsWith('(network unknown)')
+        ? "IMPORTANT: Verify the USDT network with ShopInBit before sending. "
+              "Sending on the wrong network can permanently lose funds."
+        : "IMPORTANT: Only send $paymentLabel to this address. Do not send "
+              "USDT on another network.";
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -281,7 +296,7 @@ class _ExternalPaymentDialog extends StatelessWidget {
             ).extension<StackColors>()!.warningBackground,
             child: Center(
               child: Text(
-                "IMPORTANT: Only send USDT (TRC20) to this address, not TRX",
+                usdtWarning,
                 style: (isDesktop
                     ? STextStyles.desktopTextExtraExtraSmall(context)
                     : STextStyles.itemSubtitle12(context).copyWith(
@@ -312,7 +327,7 @@ class _ExternalPaymentDialog extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      "$ticker address",
+                      "$paymentLabel address",
                       style: isDesktop
                           ? STextStyles.desktopTextExtraExtraSmall(context)
                           : STextStyles.itemSubtitle12(context),
@@ -356,7 +371,10 @@ class _ExternalPaymentDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("$ticker Payment", style: STextStyles.pageTitleH2(context)),
+            Text(
+              "$paymentLabel Payment",
+              style: STextStyles.pageTitleH2(context),
+            ),
             const SizedBox(height: 16),
             content,
           ],
@@ -376,7 +394,7 @@ class _ExternalPaymentDialog extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(left: 32),
                   child: Text(
-                    "$ticker Payment",
+                    "$paymentLabel Payment",
                     style: STextStyles.desktopH3(context),
                   ),
                 ),
