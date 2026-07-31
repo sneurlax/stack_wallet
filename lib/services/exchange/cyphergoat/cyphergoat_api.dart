@@ -57,7 +57,7 @@ abstract class CypherGoatAPI {
       return json;
     } catch (e, s) {
       Logging.instance.e(
-        "CypherGoatAPI GET $uri HTTP:$code threw:",
+        "CypherGoatAPI GET ${uri.path} HTTP:$code threw:",
         error: e,
         stackTrace: s,
       );
@@ -83,10 +83,6 @@ abstract class CypherGoatAPI {
       "amount": amount,
       "best": "false",
     };
-
-    if (kCypherGoatApiKey.isNotEmpty) {
-      params["api_key"] = kCypherGoatApiKey;
-    }
 
     final uri = _buildUri(path: "/estimate", params: params);
 
@@ -151,10 +147,6 @@ abstract class CypherGoatAPI {
     if (estimateId != null && estimateId.isNotEmpty) {
       params["estimateid"] = estimateId;
     }
-    if (kCypherGoatApiKey.isNotEmpty) {
-      params["api_key"] = kCypherGoatApiKey;
-    }
-
     final uri = _buildUri(path: "/swap", params: params);
 
     try {
@@ -190,10 +182,6 @@ abstract class CypherGoatAPI {
     required String cgid,
   }) async {
     final params = <String, String>{"id": cgid};
-    if (kCypherGoatApiKey.isNotEmpty) {
-      params["api_key"] = kCypherGoatApiKey;
-    }
-
     final uri = _buildUri(path: "/transaction", params: params);
 
     try {
@@ -210,7 +198,7 @@ abstract class CypherGoatAPI {
       );
     } catch (e, s) {
       Logging.instance.e(
-        "CypherGoatAPI.getTransaction($cgid) exception:",
+        "CypherGoatAPI.getTransaction() exception:",
         error: e,
         stackTrace: s,
       );
