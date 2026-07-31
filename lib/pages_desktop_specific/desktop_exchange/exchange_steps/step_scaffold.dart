@@ -113,9 +113,10 @@ class _StepScaffoldState extends ConsumerState<StepScaffold> {
               ? ref.read(desktopExchangeModelProvider)!.receiveAmount
               : ref.read(desktopExchangeModelProvider)!.sendAmount,
           addressTo: ref.read(desktopExchangeModelProvider)!.recipientAddress!,
-          extraId: null,
+          extraId: ref.read(desktopExchangeModelProvider)!.recipientExtraId,
           addressRefund: ref.read(desktopExchangeModelProvider)!.refundAddress!,
-          refundExtraId: "",
+          refundExtraId:
+              ref.read(desktopExchangeModelProvider)!.refundExtraId ?? "",
           estimate: ref.read(desktopExchangeModelProvider)!.estimate,
           reversed: ref.read(desktopExchangeModelProvider)!.reversed,
         );

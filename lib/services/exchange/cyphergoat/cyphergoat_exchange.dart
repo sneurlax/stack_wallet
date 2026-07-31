@@ -380,6 +380,12 @@ class CypherGoatExchange extends Exchange {
           ExchangeExceptionType.generic,
         );
       }
+      if (extraId?.trim().isNotEmpty ?? false) {
+        throw ExchangeException(
+          "CypherGoat does not support a destination memo or tag",
+          ExchangeExceptionType.generic,
+        );
+      }
 
       final response = await CypherGoatAPI.createSwap(
         coin1: from,

@@ -44,6 +44,17 @@ class IncompleteExchangeModel extends ChangeNotifier {
     }
   }
 
+  String? _recipientExtraId;
+
+  String? get recipientExtraId => _recipientExtraId;
+
+  set recipientExtraId(String? recipientExtraId) {
+    if (_recipientExtraId != recipientExtraId) {
+      _recipientExtraId = recipientExtraId;
+      notifyListeners();
+    }
+  }
+
   String? _refundAddress;
 
   String? get refundAddress => _refundAddress;
@@ -51,6 +62,17 @@ class IncompleteExchangeModel extends ChangeNotifier {
   set refundAddress(String? refundAddress) {
     if (_refundAddress != refundAddress) {
       _refundAddress = refundAddress;
+      notifyListeners();
+    }
+  }
+
+  String? _refundExtraId;
+
+  String? get refundExtraId => _refundExtraId;
+
+  set refundExtraId(String? refundExtraId) {
+    if (_refundExtraId != refundExtraId) {
+      _refundExtraId = refundExtraId;
       notifyListeners();
     }
   }

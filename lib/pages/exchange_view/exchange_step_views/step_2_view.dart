@@ -60,10 +60,14 @@ class _Step2ViewState extends ConsumerState<Step2View> {
   late final ClipboardInterface clipboard;
 
   late final TextEditingController _toController;
+  late final TextEditingController _toExtraIdController;
   late final TextEditingController _refundController;
+  late final TextEditingController _refundExtraIdController;
 
   late final FocusNode _toFocusNode;
+  late final FocusNode _toExtraIdFocusNode;
   late final FocusNode _refundFocusNode;
+  late final FocusNode _refundExtraIdFocusNode;
 
   bool enableNext = false;
 
@@ -81,6 +85,11 @@ class _Step2ViewState extends ConsumerState<Step2View> {
         // auto fill address
         _refundController.text = paymentData.address;
         model.refundAddress = _refundController.text;
+        final paymentId = paymentData.paymentId?.trim();
+        if (paymentId?.isNotEmpty ?? false) {
+          _refundExtraIdController.text = paymentId!;
+          model.refundExtraId = paymentId;
+        }
 
         setState(() {
           enableNext =
@@ -135,6 +144,11 @@ class _Step2ViewState extends ConsumerState<Step2View> {
         // auto fill address
         _toController.text = paymentData.address;
         model.recipientAddress = _toController.text;
+        final paymentId = paymentData.paymentId?.trim();
+        if (paymentId?.isNotEmpty ?? false) {
+          _toExtraIdController.text = paymentId!;
+          model.recipientExtraId = paymentId;
+        }
 
         setState(() {
           enableNext =
@@ -183,10 +197,14 @@ class _Step2ViewState extends ConsumerState<Step2View> {
     clipboard = widget.clipboard;
 
     _toController = TextEditingController();
+    _toExtraIdController = TextEditingController(text: model.recipientExtraId);
     _refundController = TextEditingController();
+    _refundExtraIdController = TextEditingController(text: model.refundExtraId);
 
     _toFocusNode = FocusNode();
+    _toExtraIdFocusNode = FocusNode();
     _refundFocusNode = FocusNode();
+    _refundExtraIdFocusNode = FocusNode();
 
     final tuple = ref.read(exchangeSendFromWalletIdStateProvider.state).state;
     if (tuple != null) {
@@ -221,10 +239,14 @@ class _Step2ViewState extends ConsumerState<Step2View> {
   @override
   void dispose() {
     _toController.dispose();
+    _toExtraIdController.dispose();
     _refundController.dispose();
+    _refundExtraIdController.dispose();
 
     _toFocusNode.dispose();
+    _toExtraIdFocusNode.dispose();
     _refundFocusNode.dispose();
+    _refundExtraIdFocusNode.dispose();
 
     super.dispose();
   }
@@ -543,6 +565,18 @@ class _Step2ViewState extends ConsumerState<Step2View> {
                                 style: STextStyles.label(context),
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            FullTextField(
+                              key: const Key(
+                                "recipientExchangeStep2ViewExtraIdFieldKey",
+                              ),
+                              controller: _toExtraIdController,
+                              focusNode: _toExtraIdFocusNode,
+                              label: "Recipient memo / tag (optional)",
+                              onChanged: (value) {
+                                model.recipientExtraId = value.trim();
+                              },
+                            ),
                             const SizedBox(height: 24),
                             if (supportsRefund)
                               Row(
@@ -814,6 +848,19 @@ class _Step2ViewState extends ConsumerState<Step2View> {
                                   "In case something goes wrong during the exchange, we might need a refund address so we can return your coins back to you.",
                                   style: STextStyles.label(context),
                                 ),
+                              ),
+                            if (supportsRefund) const SizedBox(height: 16),
+                            if (supportsRefund)
+                              FullTextField(
+                                key: const Key(
+                                  "refundExchangeStep2ViewExtraIdFieldKey",
+                                ),
+                                controller: _refundExtraIdController,
+                                focusNode: _refundExtraIdFocusNode,
+                                label: "Refund memo / tag (optional)",
+                                onChanged: (value) {
+                                  model.refundExtraId = value.trim();
+                                },
                               ),
                             const SizedBox(height: 16),
                             const Spacer(),

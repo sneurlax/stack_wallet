@@ -52,10 +52,14 @@ class _DesktopStep2State extends ConsumerState<DesktopStep2> {
   late final ClipboardInterface clipboard;
 
   late final TextEditingController _toController;
+  late final TextEditingController _toExtraIdController;
   late final TextEditingController _refundController;
+  late final TextEditingController _refundExtraIdController;
 
   late final FocusNode _toFocusNode;
+  late final FocusNode _toExtraIdFocusNode;
   late final FocusNode _refundFocusNode;
+  late final FocusNode _refundExtraIdFocusNode;
 
   void selectRecipientAddressFromStack() async {
     try {
@@ -210,10 +214,18 @@ class _DesktopStep2State extends ConsumerState<DesktopStep2> {
     clipboard = widget.clipboard;
 
     _toController = TextEditingController();
+    _toExtraIdController = TextEditingController(
+      text: ref.read(desktopExchangeModelProvider)?.recipientExtraId,
+    );
     _refundController = TextEditingController();
+    _refundExtraIdController = TextEditingController(
+      text: ref.read(desktopExchangeModelProvider)?.refundExtraId,
+    );
 
     _toFocusNode = FocusNode();
+    _toExtraIdFocusNode = FocusNode();
     _refundFocusNode = FocusNode();
+    _refundExtraIdFocusNode = FocusNode();
 
     doesRefundAddress = ref.read(efExchangeProvider).supportsRefundAddress;
 
@@ -261,10 +273,14 @@ class _DesktopStep2State extends ConsumerState<DesktopStep2> {
   @override
   void dispose() {
     _toController.dispose();
+    _toExtraIdController.dispose();
     _refundController.dispose();
+    _refundExtraIdController.dispose();
 
     _toFocusNode.dispose();
+    _toExtraIdFocusNode.dispose();
     _refundFocusNode.dispose();
+    _refundExtraIdFocusNode.dispose();
 
     super.dispose();
   }
@@ -424,6 +440,17 @@ class _DesktopStep2State extends ConsumerState<DesktopStep2> {
             style: STextStyles.desktopTextExtraExtraSmall(context),
           ),
         ),
+        const SizedBox(height: 16),
+        FullTextField(
+          key: const Key("recipientExchangeStep2ViewExtraIdFieldKey"),
+          controller: _toExtraIdController,
+          focusNode: _toExtraIdFocusNode,
+          label: "Recipient memo / tag (optional)",
+          onChanged: (value) {
+            ref.read(desktopExchangeModelProvider)!.recipientExtraId = value
+                .trim();
+          },
+        ),
         if (doesRefundAddress) const SizedBox(height: 24),
         if (doesRefundAddress)
           Row(
@@ -570,6 +597,18 @@ class _DesktopStep2State extends ConsumerState<DesktopStep2> {
               "a refund address so we can return your coins back to you.",
               style: STextStyles.desktopTextExtraExtraSmall(context),
             ),
+          ),
+        if (doesRefundAddress) const SizedBox(height: 16),
+        if (doesRefundAddress)
+          FullTextField(
+            key: const Key("refundExchangeStep2ViewExtraIdFieldKey"),
+            controller: _refundExtraIdController,
+            focusNode: _refundExtraIdFocusNode,
+            label: "Refund memo / tag (optional)",
+            onChanged: (value) {
+              ref.read(desktopExchangeModelProvider)!.refundExtraId = value
+                  .trim();
+            },
           ),
       ],
     );

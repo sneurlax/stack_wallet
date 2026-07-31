@@ -77,10 +77,10 @@ class TrocadorExchange extends Exchange {
             toNetwork: onlySupportedNetwork,
             toAmount: amount.toString(),
             receivingAddress: addressTo,
-            receivingMemo: null,
+            receivingMemo: extraId,
             refundAddress: addressRefund,
-            refundMemo: null,
-            exchangeProvider: estimate!.exchangeProvider!,
+            refundMemo: refundExtraId,
+            exchangeProvider: estimate!.exchangeProvider,
             isFixedRate: fixedRate,
           )
         : await TrocadorAPI.createNewStandardRateTrade(
@@ -92,10 +92,10 @@ class TrocadorExchange extends Exchange {
             toNetwork: onlySupportedNetwork,
             fromAmount: amount.toString(),
             receivingAddress: addressTo,
-            receivingMemo: null,
+            receivingMemo: extraId,
             refundAddress: addressRefund,
-            refundMemo: null,
-            exchangeProvider: estimate!.exchangeProvider!,
+            refundMemo: refundExtraId,
+            exchangeProvider: estimate!.exchangeProvider,
             isFixedRate: fixedRate,
           );
 
