@@ -124,7 +124,7 @@ class _ShopInBitConfirmSendViewState
       // here, so there's nothing to persist locally; just nudge a refresh so
       // the ticket row reflects the new payment status promptly.
       if (apiTicketId != 0) {
-        unawaited(ref.read(pShopinBitService).refreshOne(apiTicketId));
+        ref.read(pShopinBitService).refreshOneInBackground(apiTicketId);
       }
 
       // pop back to wallet
@@ -132,9 +132,7 @@ class _ShopInBitConfirmSendViewState
         final popThroughRouteName = widget.popThroughRouteName;
         if (popThroughRouteName != null) {
           final navigator = Navigator.of(context, rootNavigator: true);
-          navigator.popUntil(
-            ModalRoute.withName(popThroughRouteName),
-          );
+          navigator.popUntil(ModalRoute.withName(popThroughRouteName));
           navigator.pop();
         } else {
           // pop sending dialog (pushed via showDialog which uses root navigator)

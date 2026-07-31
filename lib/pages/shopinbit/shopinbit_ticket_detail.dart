@@ -86,8 +86,9 @@ class _ShopInBitTicketDetailState extends ConsumerState<ShopInBitTicketDetail>
     _messageController = TextEditingController();
     WidgetsBinding.instance.addObserver(this);
 
-    // start with a refresh right away and then start polling for updates
-    unawaited(_refresh().then((_) => _startPolling()));
+    // Poll immediately. `_poll` contains refresh errors and always re-arms
+    // with backoff, so a transient first-load failure cannot stop the loop.
+    unawaited(_poll());
   }
 
   @override

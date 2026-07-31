@@ -26,6 +26,19 @@ class _InFlightRefresh {
   final bool forced;
 }
 
+/// Runs a refresh that must not escape as an unhandled asynchronous error.
+@visibleForTesting
+Future<void> runShopInBitRefreshBestEffort(
+  Future<void> Function() refresh, {
+  required void Function(Object error, StackTrace stackTrace) onError,
+}) async {
+  try {
+    await refresh();
+  } catch (e, s) {
+    onError(e, s);
+  }
+}
+
 class ShopInBitService {
   ShopInBitService({required this.client, required this.db});
 
@@ -111,6 +124,26 @@ class ShopInBitService {
     );
   }
 
+  /// Starts a refresh for fire-and-forget call sites while containing and
+  /// logging failures from the shared in-flight completer.
+  void refreshOneInBackground(
+    int apiTicketId, {
+    bool forceUpdateMessages = false,
+  }) {
+    unawaited(
+      runShopInBitRefreshBestEffort(
+        () => refreshOne(apiTicketId, forceUpdateMessages: forceUpdateMessages),
+        onError: (e, s) {
+          Logging.instance.w(
+            "ShopInBitService background refresh failed",
+            error: e,
+            stackTrace: s,
+          );
+        },
+      ),
+    );
+  }
+
   // -- Actions --
 
   /// Create a new ticket. We know every required field at this point
@@ -151,7 +184,7 @@ class ShopInBitService {
       ),
     );
 
-    unawaited(refreshOne(ref.id));
+    refreshOneInBackground(ref.id);
     return ref;
   }
 
@@ -175,7 +208,7 @@ class ShopInBitService {
             customerKey: customerKey,
           );
     if (resp.hasError) return false;
-    unawaited(refreshOne(apiTicketId, forceUpdateMessages: true));
+    refreshOneInBackground(apiTicketId, forceUpdateMessages: true);
     return true;
   }
 
