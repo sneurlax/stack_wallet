@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' show parseFragment;
+import 'package:meta/meta.dart';
 
 class TicketMessage {
   final DateTime timestamp;
@@ -64,8 +65,9 @@ class MessageProxyImageSegment extends MessageContentSegment {
   final String? filename;
 }
 
-/// An authenticated `/attachment-proxy/` file link, opened in the browser.
-/// [proxyPath] is the attachment-proxy path; [filename] is the link text.
+/// An authenticated `/attachment-proxy/` file link, downloaded before sharing
+/// or opening so credentials never leave the app. [proxyPath] is the
+/// attachment-proxy path; [filename] is the link text.
 class MessageFileLinkSegment extends MessageContentSegment {
   MessageFileLinkSegment({required this.proxyPath, this.filename});
   final String proxyPath;
@@ -161,39 +163,65 @@ final _whitespaceRe = RegExp(r'\s');
 // Bounded by total decoded size so large/many inline images can't grow it
 // without limit.
 const int _kInlineImageCacheMaxBytes = 16 * 1024 * 1024;
-final _inlineImageCache = <String, Uint8List>{};
-int _inlineImageCacheBytes = 0;
+final _inlineImageCache = InlineImageCache(
+  maxBytes: _kInlineImageCacheMaxBytes,
+);
+
+/// Byte-bounded LRU for decoded inline images.
+///
+/// Public only so the eviction behavior can be regression tested without
+/// allocating a production-sized image.
+@visibleForTesting
+class InlineImageCache {
+  InlineImageCache({required this.maxBytes}) : assert(maxBytes > 0);
+
+  final int maxBytes;
+  final _entries = <String, Uint8List>{};
+  int _cachedBytes = 0;
+
+  int get cachedBytes => _cachedBytes;
+
+  Uint8List? decode(String src) {
+    if (!src.startsWith('data:image/')) return null;
+    const marker = ';base64,';
+    final idx = src.indexOf(marker);
+    if (idx < 0) return null;
+    final b64 = src
+        .substring(idx + marker.length)
+        .replaceAll(_whitespaceRe, '');
+    if (b64.isEmpty) return null;
+
+    final cached = _entries.remove(b64);
+    if (cached != null) {
+      _entries[b64] = cached;
+      return cached;
+    }
+
+    final Uint8List bytes;
+    try {
+      bytes = base64Decode(b64);
+    } catch (_) {
+      return null;
+    }
+
+    // A single entry larger than the entire budget must not make the cache
+    // permanently exceed its advertised bound.
+    if (bytes.length > maxBytes) return bytes;
+
+    while (_cachedBytes + bytes.length > maxBytes && _entries.isNotEmpty) {
+      final oldest = _entries.keys.first;
+      _cachedBytes -= _entries.remove(oldest)?.length ?? 0;
+    }
+    _entries[b64] = bytes;
+    _cachedBytes += bytes.length;
+    return bytes;
+  }
+}
 
 /// Decode a `data:image/<type>;base64,<data>` URI to bytes, or null if [src] is
 /// not such a data URI or the payload doesn't decode. Cached by payload.
 Uint8List? _decodeInlineImage(String src) {
-  if (!src.startsWith('data:image/')) return null;
-  const marker = ';base64,';
-  final idx = src.indexOf(marker);
-  if (idx < 0) return null;
-  final b64 = src.substring(idx + marker.length).replaceAll(_whitespaceRe, '');
-  if (b64.isEmpty) return null;
-
-  final cached = _inlineImageCache.remove(b64);
-  if (cached != null) {
-    _inlineImageCache[b64] = cached; // move to most-recently-used
-    return cached;
-  }
-
-  final Uint8List bytes;
-  try {
-    bytes = base64Decode(b64);
-  } catch (_) {
-    return null;
-  }
-  _inlineImageCache[b64] = bytes;
-  _inlineImageCacheBytes += bytes.length;
-  while (_inlineImageCacheBytes > _kInlineImageCacheMaxBytes &&
-      _inlineImageCache.length > 1) {
-    final oldest = _inlineImageCache.keys.first;
-    _inlineImageCacheBytes -= _inlineImageCache.remove(oldest)?.length ?? 0;
-  }
-  return bytes;
+  return _inlineImageCache.decode(src);
 }
 
 bool _isAttachmentProxy(String url) => url.contains('/attachment-proxy/');
