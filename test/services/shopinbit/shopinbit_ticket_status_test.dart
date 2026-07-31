@@ -2,6 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stackwallet/services/shopinbit/src/models/ticket.dart';
 
 void main() {
+  test('empty tracking values do not create a bogus HTTPS link', () {
+    expect(splitTrackingLinks(null), isEmpty);
+    expect(splitTrackingLinks(''), isEmpty);
+    expect(splitTrackingLinks(' , | ; '), isEmpty);
+  });
+
+  test('tracking values keep only valid web links', () {
+    expect(
+      splitTrackingLinks(
+        'tracking.example/one | https://tracking.example/two; javascript:',
+      ),
+      ['https://tracking.example/one', 'https://tracking.example/two'],
+    );
+  });
+
   test('ticket status timestamps are normalized to UTC', () {
     final status = TicketStatus.fromJson({
       'ticket_id': 42,

@@ -12,14 +12,19 @@ List<String> splitTrackingLinks(String? raw) {
   return raw
       .split(RegExp(r'[,|;]'))
       .map((s) {
-        final url = s.trim();
-        if (url.startsWith("http://") || url.startsWith("https://")) {
-          return url;
+        final value = s.trim();
+        if (value.isEmpty) return null;
+        final parsed = Uri.tryParse(value);
+        final Uri? uri;
+        if (parsed?.hasScheme ?? false) {
+          if (parsed!.scheme != 'http' && parsed.scheme != 'https') return null;
+          uri = parsed;
         } else {
-          return "https://$url";
+          uri = Uri.tryParse('https://$value');
         }
+        return uri != null && uri.host.isNotEmpty ? uri.toString() : null;
       })
-      .where((s) => s.isNotEmpty)
+      .whereType<String>()
       .toList();
 }
 
